@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fffaf0;
+  --foreground: #1f1b2e;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* subtle page border accent */
+.om-divider {
+  background: linear-gradient(90deg, transparent, #f4a300, transparent);
+  height: 1px;
+}
