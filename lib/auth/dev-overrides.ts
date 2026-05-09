@@ -9,6 +9,16 @@
 
 import { ROLE_ALLOWLIST, type Role } from "./roles";
 
+// Same distinction as lib/auth/roles.ts: Vercel sets NODE_ENV=production
+// on preview deployments too, so we must also check VERCEL_ENV.
+function isNonProdBuild(): boolean {
+  const nodeEnv = process.env.NODE_ENV;
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (nodeEnv !== "production") return true;
+  if (vercelEnv && vercelEnv !== "production") return true;
+  return false;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -26,7 +36,7 @@ export function effectiveTodayIST(params: {
     timeZone: "Asia/Kolkata",
   });
 
-  if (process.env.NODE_ENV === "production") return real;
+  if (!isNonProdBuild()) return real;
   if (!params.todayParam) return real;
   if (params.realRole !== "manager") return real;
 
