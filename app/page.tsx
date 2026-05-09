@@ -47,6 +47,41 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Darshan — Sri Sri Radha Madan Mohan */}
+      <section className="bg-gradient-to-b from-saffron-50 via-white to-saffron-50 border-b border-saffron-100">
+        <div className="max-w-5xl mx-auto px-4 py-12 md:py-16">
+          <div className="text-center mb-6 md:mb-8">
+            <div className="text-xs md:text-sm uppercase tracking-[0.25em] text-saffron-700">
+              Darshan
+            </div>
+            <div className="om-divider mt-2 w-24 mx-auto" />
+          </div>
+          <figure className="mx-auto max-w-3xl">
+            <div className="relative rounded-2xl overflow-hidden border-4 border-saffron-200 shadow-xl ring-1 ring-krishna-200/40 bg-krishna-900">
+              {/* Place the photo at /public/radha-madan-mohan.jpg */}
+              <img
+                src="/radha-madan-mohan.jpg"
+                alt="Sri Sri Radha Madan Mohan — the worshipable Deities of our sanga, beautifully dressed and garlanded"
+                loading="eager"
+                className="w-full h-auto block"
+              />
+            </div>
+            <figcaption className="mt-5 text-center">
+              <div className="font-serif text-2xl md:text-3xl text-krishna-800">
+                Sri Sri Radha Madan Mohan
+              </div>
+              <div className="mt-1 text-sm md:text-base text-saffron-700 uppercase tracking-widest">
+                Our beloved Lordships
+              </div>
+              <div className="mt-3 text-gray-600 text-sm italic max-w-xl mx-auto">
+                All glories to the eternal Divine Couple, the presiding Deities
+                of our sanga.
+              </div>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
       {/* Next Sunday banner */}
       <section className="bg-saffron-50 border-y border-saffron-200">
         <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
