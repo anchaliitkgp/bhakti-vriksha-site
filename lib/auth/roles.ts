@@ -12,6 +12,34 @@ export const ROLE_ALLOWLIST: Record<string, Role> = {
 };
 
 /**
+ * Extra organisers used only in non-production builds — lets us test the
+ * Organiser UX on dev / localhost without touching the prod allowlist.
+ * These entries are merged into ROLE_ALLOWLIST in non-prod environments.
+ */
+const DEV_EXTRA_ORGANISERS: Record<string, Role> = {
+  "divya.nayak14@gmail.com": "organiser",
+  "anchaljbp1986@gmail.com": "organiser",
+};
+
+/** True when the current deployment is NOT the real production site.
+ *  Vercel sets NODE_ENV=production for every deployment (including Preview)
+ *  so we can't use NODE_ENV alone — we fall back to VERCEL_ENV which
+ *  distinguishes "production" vs "preview" vs "development". Locally with
+ *  `npm run dev` neither var is set so we also treat that as non-prod. */
+function isNonProdBuild(): boolean {
+  const nodeEnv = process.env.NODE_ENV;
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (nodeEnv !== "production") return true; // local dev
+  if (vercelEnv && vercelEnv !== "production") return true; // Vercel Preview
+  return false;
+}
+
+/** Resolved allowlist for the current environment (code-level). */
+export const EFFECTIVE_ROLE_ALLOWLIST: Record<string, Role> = isNonProdBuild()
+  ? { ...ROLE_ALLOWLIST, ...DEV_EXTRA_ORGANISERS }
+  : ROLE_ALLOWLIST;
+
+/**
  * Resolve a role for a given email.
  * - null / undefined / empty    → "guest"
  * - email in the allowlist      → that role
@@ -20,7 +48,7 @@ export const ROLE_ALLOWLIST: Record<string, Role> = {
 export function roleFor(email: string | null | undefined): Role {
   if (!email) return "guest";
   const normalized = email.toLowerCase();
-  return ROLE_ALLOWLIST[normalized] ?? "member";
+  return EFFECTIVE_ROLE_ALLOWLIST[normalized] ?? "member";
 }
 
 // ─── Dev role override ─────────────────────────────────────────────────────
@@ -42,8 +70,9 @@ export function resolveEffectiveRole(params: {
 }): Role {
   const { realRole, realEmail, asParam } = params;
 
-  // Never in production.
-  if (process.env.NODE_ENV === "production") return realRole;
+  // Never on the real production site. (NODE_ENV alone isn't reliable on
+  // Vercel — all builds set NODE_ENV=production. See isNonProdBuild.)
+  if (!isNonProdBuild()) return realRole;
 
   // No override requested.
   if (!asParam) return realRole;

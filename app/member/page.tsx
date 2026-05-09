@@ -4,6 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
 import AttendanceButton from "@/components/AttendanceButton";
+import FamilyAttendanceChecklist, {
+  type FamilyMemberSummary,
+} from "@/components/FamilyAttendanceChecklist";
 import RegisterFamilyBanner from "@/components/RegisterFamilyBanner";
 import { resolveEffectiveRole, isRoleOverridden, type Role } from "@/lib/auth/roles";
 import { effectiveTodayIST, isDateOverridden } from "@/lib/auth/dev-overrides";
@@ -127,8 +130,8 @@ export default async function MemberDashboard({
   const memberId = memberRow?.id as string | undefined;
 
   // 1b. Is the signed-in user the Primary of an Approved family?
-  //     If yes, we render the "and Family" greeting + the family-scope
-  //     attendance button instead of the individual one.
+  //     Also load the full member roster for the per-member attendance
+  //     checklist shown below.
   const { data: myFamily } = await supabase
     .from("families")
     .select("id, status")
@@ -139,18 +142,51 @@ export default async function MemberDashboard({
   const isApprovedPrimary = isPrimary && myFamily?.status === "Approved";
   let familyMemberCount = 1;
   let primaryDisplayName: string | null = null;
+  let familyRosterRaw: Array<{
+    id: string;
+    kind: string;
+    given_name: string;
+    initiated: boolean;
+    initiated_name: string | null;
+    relationship: string;
+    age: number;
+  }> = [];
   if (isPrimary && myFamily?.id) {
     const { data: fmembers } = await supabase
       .from("family_members")
-      .select("kind, given_name, initiated, initiated_name")
+      .select(
+        "id, kind, given_name, initiated, initiated_name, relationship, age"
+      )
       .eq("family_id", myFamily.id);
-    familyMemberCount = (fmembers ?? []).length;
-    const primary = (fmembers ?? []).find((m: any) => m.kind === "Primary");
+    familyRosterRaw = (fmembers as any) ?? [];
+    familyMemberCount = familyRosterRaw.length;
+    const primary = familyRosterRaw.find((m) => m.kind === "Primary");
     if (primary) {
       primaryDisplayName =
         primary.initiated && primary.initiated_name
           ? String(primary.initiated_name)
           : String(primary.given_name);
+    }
+  }
+
+  // 1c. Is the signed-in user a Secondary with their own Gmail (matches a
+  //     family_members.email row on an Approved family)? If so, the dashboard
+  //     offers them a self-only mark — they only see themselves, not the
+  //     whole roster.
+  let selfFamilyMemberId: string | null = null;
+  let selfFamilyId: string | null = null;
+  if (!isPrimary) {
+    const { data: selfFm } = await supabase
+      .from("family_members")
+      .select("id, family_id, families!inner(status)")
+      .eq("email", email)
+      .maybeSingle();
+    const fm = selfFm as
+      | { id: string; family_id: string; families: { status: string } }
+      | null;
+    if (fm && fm.families?.status === "Approved") {
+      selfFamilyMemberId = fm.id;
+      selfFamilyId = fm.family_id;
     }
   }
 
@@ -171,39 +207,88 @@ export default async function MemberDashboard({
     .limit(4);
   const upcoming = (upcomingRaw ?? []) as SessionRow[];
 
-  // 4. Attendance history for this member (all rows — we need count, and the
-  // last 5 attended weeks). For family-scope primaries we union in the
-  // family_attendance rows so the dashboard shows the whole picture.
+  // 4. Attendance history for this member. Across all three sources:
+  //    - family_member_attendance (granular per-member, new)
+  //    - attendance (legacy self)
+  //    - family_attendance (legacy coarse family-wide)
   let attendanceCount = 0;
   let recentAttendance: Array<{ session_week: number; marked_at: string }> = [];
   let alreadyMarkedToday = false;
 
-  if (memberId) {
-    const { data: attendanceRows } = await supabase
-      .from("attendance")
-      .select("session_week, marked_at")
-      .eq("member_id", memberId)
-      .order("session_week", { ascending: false });
+  // Roster + already-marked map for today, used by the checklist UI (primary only)
+  const rosterWeekMarked = new Map<string, boolean>(); // family_member_id → already?
+  if (todaySession && (isApprovedPrimary || selfFamilyMemberId)) {
+    const rosterIds = isApprovedPrimary
+      ? familyRosterRaw.map((m) => m.id)
+      : selfFamilyMemberId
+      ? [selfFamilyMemberId]
+      : [];
+    if (rosterIds.length > 0) {
+      const { data: marks } = await supabase
+        .from("family_member_attendance")
+        .select("family_member_id")
+        .in("family_member_id", rosterIds)
+        .eq("session_week", todaySession.week);
+      for (const r of (marks as any) ?? []) {
+        rosterWeekMarked.set(r.family_member_id, true);
+      }
+    }
+  }
 
-    const selfRows =
-      (attendanceRows as Array<{
-        session_week: number;
-        marked_at: string;
-      }> | null) ?? [];
+  if (memberId || selfFamilyMemberId || isApprovedPrimary) {
+    const selfRows: Array<{ session_week: number; marked_at: string }> = [];
+    const coarseFamilyRows: Array<{
+      session_week: number;
+      marked_at: string;
+    }> = [];
+    const memberAttendanceRows: Array<{
+      session_week: number;
+      marked_at: string;
+    }> = [];
 
-    let familyRows: Array<{ session_week: number; marked_at: string }> = [];
+    if (memberId) {
+      const { data: attendanceRows } = await supabase
+        .from("attendance")
+        .select("session_week, marked_at")
+        .eq("member_id", memberId)
+        .order("session_week", { ascending: false });
+      selfRows.push(...((attendanceRows as any) ?? []));
+    }
+
     if (isApprovedPrimary && myFamily?.id) {
       const { data: famRows } = await supabase
         .from("family_attendance")
         .select("session_week, marked_at")
         .eq("family_id", myFamily.id)
         .order("session_week", { ascending: false });
-      familyRows = (famRows as typeof familyRows | null) ?? [];
+      coarseFamilyRows.push(...((famRows as any) ?? []));
+    }
+
+    // Per-member attendance for "what have I attended"
+    if (selfFamilyMemberId) {
+      const { data: fmaRows } = await supabase
+        .from("family_member_attendance")
+        .select("session_week, marked_at")
+        .eq("family_member_id", selfFamilyMemberId)
+        .order("session_week", { ascending: false });
+      memberAttendanceRows.push(...((fmaRows as any) ?? []));
+    } else if (isApprovedPrimary && familyRosterRaw.length > 0) {
+      // For the primary, "attendance count" represents the primary's own
+      // attendance (not family-wide) — find their family_member_id first.
+      const primaryFm = familyRosterRaw.find((m) => m.kind === "Primary");
+      if (primaryFm) {
+        const { data: fmaRows } = await supabase
+          .from("family_member_attendance")
+          .select("session_week, marked_at")
+          .eq("family_member_id", primaryFm.id)
+          .order("session_week", { ascending: false });
+        memberAttendanceRows.push(...((fmaRows as any) ?? []));
+      }
     }
 
     // Merge by week, keeping earliest marked_at.
     const merged = new Map<number, string>();
-    for (const r of [...selfRows, ...familyRows]) {
+    for (const r of [...memberAttendanceRows, ...selfRows, ...coarseFamilyRows]) {
       const prev = merged.get(r.session_week);
       if (!prev || r.marked_at < prev) merged.set(r.session_week, r.marked_at);
     }
@@ -254,6 +339,87 @@ export default async function MemberDashboard({
         };
       })
       .filter((r) => r.date !== "");
+  }
+
+  // 5. Family history grid (Primary only): for every session that has
+  //    passed (date <= today) or is today, which family member attended?
+  //    Used by the My Attendance card to show the whole family's history.
+  type FamilyHistoryCell = { attended: boolean };
+  type FamilyHistoryRow = {
+    week: number;
+    date: string;
+    title: string;
+    cells: Record<string, FamilyHistoryCell>; // family_member_id -> cell
+  };
+  let familyHistory: FamilyHistoryRow[] = [];
+  let familyHistoryMembers: Array<{ id: string; label: string }> = [];
+  if (isApprovedPrimary && familyRosterRaw.length > 0) {
+    // Past + today sessions, ordered newest-first
+    const { data: pastSessions } = await supabase
+      .from("sessions")
+      .select("week, date, title")
+      .lte("date", today)
+      .order("date", { ascending: false });
+    const pastWeeks = (pastSessions ?? []).map((s: any) => s.week as number);
+
+    if (pastWeeks.length > 0) {
+      const rosterIds = familyRosterRaw.map((m) => m.id);
+      const { data: fmaRows } = await supabase
+        .from("family_member_attendance")
+        .select("family_member_id, session_week")
+        .in("family_member_id", rosterIds)
+        .in("session_week", pastWeeks);
+
+      // Family-wide coarse rows (legacy): if family_attendance has a week,
+      // we render all members as attended for that week (best we can do
+      // given the data we have; the new checklist writes per-member rows).
+      const { data: famCoarseRows } = await supabase
+        .from("family_attendance")
+        .select("session_week")
+        .eq("family_id", myFamily!.id)
+        .in("session_week", pastWeeks);
+
+      const fmaByWeekMember = new Set<string>();
+      for (const r of (fmaRows as any) ?? []) {
+        fmaByWeekMember.add(`${r.session_week}|${r.family_member_id}`);
+      }
+      const coarseWeeks = new Set<number>(
+        ((famCoarseRows as any) ?? []).map((r: any) => r.session_week as number)
+      );
+
+      familyHistoryMembers = familyRosterRaw
+        // Stable order: Primary first, then others by the order they were
+        // inserted (approximated by id sort).
+        .slice()
+        .sort((a, b) => {
+          if (a.kind === "Primary" && b.kind !== "Primary") return -1;
+          if (a.kind !== "Primary" && b.kind === "Primary") return 1;
+          return a.id < b.id ? -1 : 1;
+        })
+        .map((m) => ({
+          id: m.id,
+          label:
+            m.initiated && m.initiated_name
+              ? String(m.initiated_name).split(/\s+/)[0]
+              : String(m.given_name).split(/\s+/)[0],
+        }));
+
+      familyHistory = ((pastSessions as any) ?? []).map((s: any) => ({
+        week: s.week as number,
+        date: s.date as string,
+        title: s.title as string,
+        cells: Object.fromEntries(
+          familyHistoryMembers.map((m) => [
+            m.id,
+            {
+              attended:
+                fmaByWeekMember.has(`${s.week}|${m.id}`) ||
+                coarseWeeks.has(s.week),
+            },
+          ])
+        ),
+      }));
+    }
   }
 
   const name = firstName(session.user.name, session.user.email);
@@ -346,12 +512,60 @@ export default async function MemberDashboard({
                 Suggested speaker: {todaySession.suggested_speaker}
               </div>
             )}
-            <AttendanceButton
-              week={todaySession.week}
-              sessionDate={todaySession.date}
-              alreadyMarked={alreadyMarkedToday}
-              todayOverride={dateOverridden ? today : undefined}
-            />
+            {(() => {
+              const checklistMembers: FamilyMemberSummary[] = isApprovedPrimary
+                ? familyRosterRaw.map((m) => ({
+                    id: m.id,
+                    displayName:
+                      m.initiated && m.initiated_name
+                        ? String(m.initiated_name)
+                        : String(m.given_name),
+                    relationshipLabel:
+                      m.kind === "Primary" ? "Primary" : m.relationship,
+                    age: m.age ?? null,
+                    alreadyMarked: rosterWeekMarked.get(m.id) === true,
+                  }))
+                : selfFamilyMemberId
+                ? familyRosterRaw
+                    .filter((m) => m.id === selfFamilyMemberId)
+                    .map((m) => ({
+                      id: m.id,
+                      displayName:
+                        m.initiated && m.initiated_name
+                          ? String(m.initiated_name)
+                          : String(m.given_name),
+                      relationshipLabel: m.relationship,
+                      age: m.age ?? null,
+                      alreadyMarked: rosterWeekMarked.get(m.id) === true,
+                    }))
+                : [];
+
+              // Primaries see the full roster; Secondaries-with-own-Gmail
+              // see just themselves. Both land in the same checklist UI
+              // for a consistent UX.
+              if (checklistMembers.length > 0) {
+                return (
+                  <FamilyAttendanceChecklist
+                    week={todaySession.week}
+                    sessionDate={todaySession.date}
+                    members={checklistMembers}
+                    todayOverride={dateOverridden ? today : undefined}
+                  />
+                );
+              }
+
+              // Non-family signed-in users (e.g. code-allowlisted Organisers
+              // who haven't registered a family yet) keep the original
+              // single self-button path.
+              return (
+                <AttendanceButton
+                  week={todaySession.week}
+                  sessionDate={todaySession.date}
+                  alreadyMarked={alreadyMarkedToday}
+                  todayOverride={dateOverridden ? today : undefined}
+                />
+              );
+            })()}
           </div>
         ) : (
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-gray-700">
@@ -370,50 +584,116 @@ export default async function MemberDashboard({
         )}
       </section>
 
-      {/* 3. My attendance */}
+      {/* 3. My attendance / Family attendance history */}
       <section className="mt-10">
-        <h2 className="font-serif text-2xl text-krishna-800">My attendance</h2>
+        <h2 className="font-serif text-2xl text-krishna-800">
+          {isApprovedPrimary && familyHistoryMembers.length > 1
+            ? "Family attendance"
+            : "My attendance"}
+        </h2>
         <div className="om-divider mt-2 mb-4" />
-        <div className="bg-white border border-saffron-100 rounded-2xl p-6 shadow-sm">
-          <div className="text-gray-700">
-            You have attended{" "}
-            <span className="font-semibold text-krishna-800">
-              {attendanceCount}
-            </span>{" "}
-            of{" "}
-            <span className="font-semibold text-krishna-800">
-              {totalSessions}
-            </span>{" "}
-            sessions so far.
-          </div>
-          {recentWithTitles.length > 0 ? (
-            <>
-              <div className="mt-4 text-xs uppercase tracking-widest text-saffron-700">
-                Most recent sessions attended
-              </div>
-              <ul className="mt-2 divide-y divide-saffron-100">
-                {recentWithTitles.map((r) => (
-                  <li key={r.week} className="py-2 flex items-baseline gap-3">
-                    <span className="text-sm text-gray-500 w-20 shrink-0">
-                      Week {r.week}
-                    </span>
-                    <span className="text-sm text-gray-500 w-40 shrink-0 hidden sm:block">
-                      {formatPrettyDate(r.date)}
-                    </span>
-                    <span className="text-sm text-krishna-800 font-medium">
-                      {r.title}
-                    </span>
-                  </li>
+
+        {isApprovedPrimary && familyHistory.length > 0 ? (
+          <div className="bg-white border border-saffron-100 rounded-2xl p-4 md:p-6 shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wider text-saffron-700">
+                  <th className="py-2 pr-3 sticky left-0 bg-white">Week</th>
+                  <th className="py-2 pr-3 hidden md:table-cell">Date</th>
+                  <th className="py-2 pr-3">Session</th>
+                  {familyHistoryMembers.map((m) => (
+                    <th key={m.id} className="py-2 px-2 text-center">
+                      {m.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-saffron-100">
+                {familyHistory.map((row) => (
+                  <tr key={row.week}>
+                    <td className="py-2 pr-3 font-medium text-gray-700 sticky left-0 bg-white">
+                      {row.week}
+                    </td>
+                    <td className="py-2 pr-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
+                      {formatPrettyDate(row.date)}
+                    </td>
+                    <td className="py-2 pr-3 text-krishna-800">{row.title}</td>
+                    {familyHistoryMembers.map((m) => (
+                      <td
+                        key={m.id}
+                        className="py-2 px-2 text-center"
+                        aria-label={
+                          row.cells[m.id]?.attended
+                            ? `${m.label} attended Week ${row.week}`
+                            : `${m.label} did not attend Week ${row.week}`
+                        }
+                      >
+                        {row.cells[m.id]?.attended ? (
+                          <span className="text-green-600" aria-hidden>
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="text-gray-300" aria-hidden>
+                            ·
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </ul>
-            </>
-          ) : (
-            <p className="mt-3 text-sm text-gray-500">
-              You haven&rsquo;t marked attendance yet. Attendance can only be
-              marked on the Sunday of a scheduled session.
+              </tbody>
+            </table>
+            <p className="mt-3 text-xs text-gray-500">
+              ✓ = present. Blank = not marked. Older sessions marked
+              family-wide (before per-member checklist) show everyone as
+              present for that week.
             </p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-saffron-100 rounded-2xl p-6 shadow-sm">
+            <div className="text-gray-700">
+              You have attended{" "}
+              <span className="font-semibold text-krishna-800">
+                {attendanceCount}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-krishna-800">
+                {totalSessions}
+              </span>{" "}
+              sessions so far.
+            </div>
+            {recentWithTitles.length > 0 ? (
+              <>
+                <div className="mt-4 text-xs uppercase tracking-widest text-saffron-700">
+                  Most recent sessions attended
+                </div>
+                <ul className="mt-2 divide-y divide-saffron-100">
+                  {recentWithTitles.map((r) => (
+                    <li
+                      key={r.week}
+                      className="py-2 flex items-baseline gap-3"
+                    >
+                      <span className="text-sm text-gray-500 w-20 shrink-0">
+                        Week {r.week}
+                      </span>
+                      <span className="text-sm text-gray-500 w-40 shrink-0 hidden sm:block">
+                        {formatPrettyDate(r.date)}
+                      </span>
+                      <span className="text-sm text-krishna-800 font-medium">
+                        {r.title}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-gray-500">
+                You haven&rsquo;t marked attendance yet. Attendance can only
+                be marked on the Sunday of a scheduled session.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 4. Upcoming sessions */}

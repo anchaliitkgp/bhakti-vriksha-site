@@ -82,8 +82,16 @@ export default function Navbar() {
           )}
           {isAuthed && (
             <>
-              <span className="text-gray-500 text-xs hidden lg:inline">
-                Hi, {firstName(session.user.name, session.user.email)}
+              <span
+                className="text-gray-500 text-xs hidden lg:flex lg:flex-col lg:leading-tight lg:items-end"
+                title={session.user.email ?? ""}
+              >
+                <span>Hi, {firstName(session.user.name, session.user.email)}</span>
+                {session.user.email && (
+                  <span className="text-[10px] text-gray-400">
+                    {session.user.email}
+                  </span>
+                )}
               </span>
               <button
                 type="button"
@@ -146,9 +154,14 @@ export default function Navbar() {
             )}
             {isAuthed && (
               <>
-                <span className="text-gray-500 text-xs py-1">
-                  Hi, {firstName(session.user.name, session.user.email)}
-                </span>
+                <div className="text-gray-500 text-xs py-1">
+                  <div>Hi, {firstName(session.user.name, session.user.email)}</div>
+                  {session.user.email && (
+                    <div className="text-[11px] text-gray-400 break-all">
+                      {session.user.email}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => {

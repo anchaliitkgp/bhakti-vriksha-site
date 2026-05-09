@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "seed:sessions": "./scripts/with-env.sh .env.dev.local node supabase/seed/seed-sessions.mjs",
-    "seed:sessions:prod": "./scripts/confirm-prod.sh ./scripts/with-env.sh .env.prod.local node supabase/seed/seed-sessions.mjs"
+    "seed:sessions:prod": "./scripts/confirm-prod.sh ./scripts/with-env.sh .env.prod.local node supabase/seed/seed-sessions.mjs",
+    "gallery:upload": "./scripts/with-env.sh .env.dev.local node supabase/upload-album.mjs",
+    "gallery:upload:prod": "./scripts/confirm-prod.sh ./scripts/with-env.sh .env.prod.local node supabase/upload-album.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -17,6 +19,7 @@
     "next-auth": "^4.24.14",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -68,37 +68,57 @@ export default async function AdminPage() {
       {/* Register-your-family nudge for organisers who haven't registered yet */}
       {!hasFamily && <RegisterFamilyBanner kind="organiser" />}
 
-      {/* Live tool — Family registrations */}
+      {/* Live tools */}
       <section className="mt-8">
         <h2 className="font-serif text-2xl text-krishna-800">Live tools</h2>
         <div className="om-divider mt-2 mb-4" />
-        <Link
-          href="/admin/registrations"
-          className="block bg-white border border-saffron-200 rounded-2xl p-5 shadow-sm hover:bg-saffron-50/50 transition"
-        >
-          <div className="flex items-center justify-between gap-3">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Link
+            href="/admin/registrations"
+            className="block bg-white border border-saffron-200 rounded-2xl p-5 shadow-sm hover:bg-saffron-50/50 transition"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-2xl" aria-hidden>
+                  📝
+                </div>
+                <div className="font-serif text-lg text-krishna-800 mt-1">
+                  Family registrations
+                </div>
+                <p className="mt-1 text-sm text-gray-700">
+                  Approve, reject, and reopen family registrations. Newly
+                  approved families are immediately allowlisted.
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-xs uppercase tracking-widest text-saffron-700">
+                  Pending
+                </div>
+                <div className="font-serif text-3xl text-krishna-800">
+                  {pendingCount ?? 0}
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/attendance"
+            className="block bg-white border border-saffron-200 rounded-2xl p-5 shadow-sm hover:bg-saffron-50/50 transition"
+          >
             <div>
               <div className="text-2xl" aria-hidden>
-                📝
+                📅
               </div>
               <div className="font-serif text-lg text-krishna-800 mt-1">
-                Family registrations
+                Attendance
               </div>
               <p className="mt-1 text-sm text-gray-700">
-                Approve, reject, and reopen family registrations. Newly
-                approved families are immediately allowlisted.
+                Pick a family from the dropdown to see per-member attendance
+                history across the programme.
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-xs uppercase tracking-widest text-saffron-700">
-                Pending
-              </div>
-              <div className="font-serif text-3xl text-krishna-800">
-                {pendingCount ?? 0}
-              </div>
-            </div>
-          </div>
-        </Link>
+          </Link>
+        </div>
       </section>
 
       {/* Coming-next */}

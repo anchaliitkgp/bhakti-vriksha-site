@@ -8,8 +8,14 @@ import { supabaseServer } from "@/lib/supabase";
 import FamilyQueueList, {
   type QueueFamily,
 } from "@/components/FamilyQueueList";
+import RegistrationTabs from "@/components/RegistrationTabs";
 
+// `force-dynamic` + no-cache fetches mean every navigation, router.refresh(),
+// and tab click produces a fresh DB read. Without it, sibling tabs can go
+// stale after approve/reject/reopen actions (2026-05-09 bug fix).
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export const metadata: Metadata = {
   title: "Family registrations · Bhakti Vriksha",
@@ -96,36 +102,14 @@ export default async function AdminRegistrations({
       </div>
       <div className="om-divider mt-2 mb-5" />
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        <TabLink tab="Pending"  count={pendingCount.count ?? 0}  active={tab === "Pending"} />
-        <TabLink tab="Approved" count={approvedCount.count ?? 0} active={tab === "Approved"} />
-        <TabLink tab="Rejected" count={rejectedCount.count ?? 0} active={tab === "Rejected"} />
-      </div>
+      <RegistrationTabs
+        active={tab}
+        pending={pendingCount.count ?? 0}
+        approved={approvedCount.count ?? 0}
+        rejected={rejectedCount.count ?? 0}
+      />
 
       <FamilyQueueList tab={tab} families={queue} />
     </div>
-  );
-}
-
-function TabLink({
-  tab,
-  count,
-  active,
-}: {
-  tab: Tab;
-  count: number;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={`/admin/registrations?tab=${tab}`}
-      className={`text-sm px-3 py-1.5 rounded-full border ${
-        active
-          ? "bg-krishna-700 text-white border-krishna-700"
-          : "bg-white text-krishna-700 border-saffron-300 hover:bg-saffron-50"
-      }`}
-    >
-      {tab} ({count})
-    </Link>
   );
 }

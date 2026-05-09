@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { supabaseServer } from "@/lib/supabase";
 import FamilyRegistrationForm from "@/components/FamilyRegistrationForm";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Register your family · Bhakti Vriksha Radha Madan Mohan",
@@ -8,7 +14,41 @@ export const metadata: Metadata = {
     "Register your family for the Sunday Bhakti Vriksha Radha Madan Mohan programme. One form per family — primary member details, optional secondary members, and important life events.",
 };
 
-export default function Register() {
+export default async function Register() {
+  // Seamless UX: if the signed-in user already has a family row (any status),
+  // send them to the edit page instead of showing a fresh registration form.
+  // This prevents accidental duplicate submissions and lets them keep their
+  // details up to date.
+  //
+  // IMPORTANT: redirect() in Next.js App Router throws internally — it MUST
+  // NOT be wrapped in a try/catch that catches everything. We only catch the
+  // DB lookup, then call redirect() OUTSIDE the try so the framework can
+  // handle its own throw.
+  let existingFamilyId: string | null = null;
+  const session = await getServerSession(authOptions);
+  if (session?.user?.email) {
+    const email = session.user.email.toLowerCase();
+    try {
+      const supabase = supabaseServer();
+      const { data: family, error } = await supabase
+        .from("families")
+        .select("id, status")
+        .eq("primary_email", email)
+        .maybeSingle();
+      if (error) {
+        console.error("[register-redirect] families lookup error:", error.message);
+      }
+      if (family?.id) {
+        existingFamilyId = family.id;
+      }
+    } catch (err) {
+      console.error("[register-redirect] threw:", err);
+    }
+  }
+  if (existingFamilyId) {
+    redirect("/member/family/edit");
+  }
+
   return (
     <section className="bg-gradient-to-b from-saffron-50 to-white min-h-[80vh]">
       <div className="max-w-3xl mx-auto px-4 py-10 md:py-14">

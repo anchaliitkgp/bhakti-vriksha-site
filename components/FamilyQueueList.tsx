@@ -2,10 +2,18 @@
 
 // The approval queue list. Renders Pending / Approved / Rejected tabs via
 // server-driven ?tab= param (handled by the page), and per-row Approve /
-// Reject actions that call the family lifecycle APIs with optimistic UI.
+// Reject actions that call the family lifecycle APIs.
+//
+// Caching correction (2026-05-09): the earlier version only did
+// client-side optimistic row removal, which left tab counts and sibling
+// tab content stale. We now call router.refresh() after every successful
+// action so the server component re-renders with live data, AND we re-sync
+// local `rows` whenever the server-passed `initial` changes (tab switch
+// + router.refresh both feed through this).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export type QueueFamily = {
   id: string;
@@ -27,6 +35,7 @@ export default function FamilyQueueList({
   tab,
   families: initial,
 }: FamilyQueueListProps) {
+  const router = useRouter();
   const [rows, setRows] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [banner, setBanner] = useState<{
@@ -34,6 +43,12 @@ export default function FamilyQueueList({
     kind: "error" | "info";
     text: string;
   } | null>(null);
+
+  // Re-sync when the parent passes fresh data (tab switch, or after
+  // router.refresh() repopulates the server-component output).
+  useEffect(() => {
+    setRows(initial);
+  }, [initial]);
 
   async function callLifecycle(
     id: string,
@@ -51,6 +66,7 @@ export default function FamilyQueueList({
           expectedVersion,
           ...(reason !== undefined ? { reason } : {}),
         }),
+        cache: "no-store",
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -65,6 +81,9 @@ export default function FamilyQueueList({
       }
       // Optimistic: remove this row from the current tab.
       setRows((prev) => prev.filter((r) => r.id !== id));
+      // Then ask the server to re-render — refreshes sibling tab counts
+      // and brings the row into the right tab even if the user switches.
+      router.refresh();
     } catch (e: any) {
       setBanner({
         id,
