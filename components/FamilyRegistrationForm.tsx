@@ -17,6 +17,11 @@ import FamilyMemberBlock, {
   type MemberFormState,
 } from "@/components/FamilyMemberBlock";
 import ConsentGate from "@/components/ConsentGate";
+import {
+  computeCoupleAssignment,
+  duplicateCoupleAnniversaries,
+  ageFromDob,
+} from "@/lib/family/couple";
 
 const DRAFT_KEY = "bhakti.family.register.draft";
 const DRAFT_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -141,13 +146,44 @@ export default function FamilyRegistrationForm({
     [secondaries]
   );
 
+  // ─── Couple-anniversary assignment ─────────────────────────────────────
+  // Figure out which secondaries should SHOW the wedding-anniversary field
+  // and which should HIDE it + show a "shared with X" note.
+  const coupleAssignment = useMemo(
+    () =>
+      computeCoupleAssignment(
+        {
+          given_name: primary.given_name,
+          relationship: "Self",
+          marital_status: primary.marital_status || "Single",
+        },
+        liveSecondaries.map((s) => ({
+          given_name: s.given_name,
+          relationship: s.relationship,
+          marital_status: s.marital_status || "Single",
+          gender: s.gender || undefined,
+        }))
+      ),
+    [primary.given_name, primary.marital_status, liveSecondaries]
+  );
+
+  // Client-side mandatory-field gate, mirrors server rules in validation.ts.
+  const memberComplete = (m: MemberFormState): boolean =>
+    !!m.given_name.trim() &&
+    !!m.date_of_birth &&
+    !!m.gender &&
+    !!m.marital_status &&
+    (!m.initiated || !!m.initiated_name.trim()) &&
+    (m.relationship !== "Other" || !!m.relationship_other.trim());
+
+  const primaryComplete = memberComplete(primary) && !!primary.email && !!primary.phone;
+  const allSecondariesComplete = liveSecondaries.every(memberComplete);
+
   const canSubmit =
     consent &&
     !submitting &&
-    !!primary.given_name &&
-    !!primary.email &&
-    !!primary.phone &&
-    !!primary.age;
+    primaryComplete &&
+    allSecondariesComplete;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -155,10 +191,40 @@ export default function FamilyRegistrationForm({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
+      // Duplicate the anniversary from each couple's bearer onto the partner
+      // so both members end up with the same date in the DB (user-requested
+      // behaviour).
+      const dup = duplicateCoupleAnniversaries(
+        {
+          given_name: primary.given_name,
+          relationship: "Self" as const,
+          marital_status: primary.marital_status || "Single",
+          wedding_anniversary: primary.wedding_anniversary || null,
+        },
+        liveSecondaries.map((s) => ({
+          given_name: s.given_name,
+          relationship: s.relationship,
+          marital_status: s.marital_status || "Single",
+          gender: s.gender || undefined,
+          wedding_anniversary: s.wedding_anniversary || null,
+        }))
+      );
+
       if (mode === "create") {
         const body = {
-          primary: toApiMember(primary, "primary"),
-          secondaries: liveSecondaries.map((s) => toApiMember(s, "secondary")),
+          primary: toApiMember(
+            { ...primary, wedding_anniversary: dup.primary.wedding_anniversary ?? "" },
+            "primary"
+          ),
+          secondaries: liveSecondaries.map((s, i) =>
+            toApiMember(
+              {
+                ...s,
+                wedding_anniversary: dup.secondaries[i].wedding_anniversary ?? "",
+              },
+              "secondary"
+            )
+          ),
           consent: true,
         };
         const res = await fetch("/api/family/register", {
@@ -180,12 +246,28 @@ export default function FamilyRegistrationForm({
       if (!initialData) throw new Error("Edit mode requires initialData");
       const body = {
         expectedVersion: initialData.version,
-        primary: { id: primaryId, ...toApiMember(primary, "primary") },
-        secondaries: secondaries.map((s) => ({
-          ...toApiMember(s, "secondary"),
-          id: s.id,
-          _op: s._op ?? (s.id ? "keep" : "create"),
-        })),
+        primary: {
+          id: primaryId,
+          ...toApiMember(
+            { ...primary, wedding_anniversary: dup.primary.wedding_anniversary ?? "" },
+            "primary"
+          ),
+        },
+        secondaries: secondaries.map((s, i) => {
+          // dup.secondaries is aligned with liveSecondaries (filtered list).
+          // Find this entry's index inside liveSecondaries to read the
+          // duplicated anniversary; deleted entries keep their original value.
+          const liveIdx = liveSecondaries.findIndex((x) => x === s);
+          const ann =
+            liveIdx >= 0
+              ? dup.secondaries[liveIdx].wedding_anniversary ?? ""
+              : s.wedding_anniversary;
+          return {
+            ...toApiMember({ ...s, wedding_anniversary: ann }, "secondary"),
+            id: s.id,
+            _op: s._op ?? (s.id ? "keep" : "create"),
+          };
+        }),
         consent_if_material: consent,
       };
       const res = await fetch(`/api/family/${initialData.familyId}`, {
@@ -315,6 +397,7 @@ export default function FamilyRegistrationForm({
         const realIdx = secondaries.findIndex(
           (item) => item === s
         );
+        const assigned = coupleAssignment.secondaries[i];
         return (
           <FamilyMemberBlock
             key={realIdx}
@@ -324,6 +407,14 @@ export default function FamilyRegistrationForm({
             onRemove={() => removeSecondary(realIdx)}
             primaryEmail={primary.email}
             primaryPhone={primary.phone}
+            sharedAnniversary={
+              s.marital_status === "Married" &&
+              assigned &&
+              !assigned.showsAnniversary &&
+              assigned.partnerName
+                ? { partnerName: assigned.partnerName }
+                : undefined
+            }
           />
         );
       })}
@@ -385,20 +476,32 @@ export default function FamilyRegistrationForm({
   );
 }
 
-// Convert form state → API shape. Applies the "same-as-primary" copy rule.
+// Convert form state → API shape. Applies the "same-as-primary" copy rule
+// and derives age from DOB (the form display is read-only; this is the
+// single place where the numeric age enters the wire payload).
 function toApiMember(
   s: MemberFormState,
   kind: "primary" | "secondary"
 ): any {
+  // Derive age from DOB server-authoritatively. Fall back to 0 only if the
+  // client has DOB validation disabled via devtools; the server Zod schema
+  // will reject that.
+  let derivedAge = 0;
+  try {
+    if (s.date_of_birth) derivedAge = ageFromDob(s.date_of_birth);
+  } catch {
+    derivedAge = Number(s.age) || 0;
+  }
+
   const obj: Record<string, unknown> = {
     given_name: s.given_name.trim(),
     initiated: s.initiated,
     initiated_name: s.initiated ? s.initiated_name.trim() : null,
-    age: Number(s.age),
+    age: derivedAge,
     gender: s.gender,
     marital_status:
-      Number(s.age) < 18 ? "Single" : s.marital_status,
-    date_of_birth: s.date_of_birth || null,
+      derivedAge < 18 ? "Single" : s.marital_status,
+    date_of_birth: s.date_of_birth,
     wedding_anniversary:
       s.marital_status === "Married" ? s.wedding_anniversary || null : null,
   };

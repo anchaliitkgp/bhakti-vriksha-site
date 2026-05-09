@@ -81,7 +81,22 @@ const age = z
   .min(0, { message: "Age must be 0 or greater." })
   .max(120, { message: "Age looks too high — please double-check." });
 
+// DOB is now required on every member (user request). Age is derived
+// server-side — we still carry it on the wire for legibility but the
+// source of truth is date_of_birth.
+const requiredIsoDate = z
+  .string({ message: "Date of birth is required." })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "Date of birth must be in YYYY-MM-DD format.",
+  });
+
 // ─── Per-member payload shape ──────────────────────────────────────────
+// User-request changes (2026-05-09):
+//   - Name, gender, marital_status, date_of_birth are MANDATORY for every
+//     member (primary + secondaries).
+//   - Age is computed from DOB server-side (ageFromDob in lib/family/couple.ts).
+//     We still accept `age` on the wire (filled in by client from DOB) so
+//     the RPC signature stays stable, but DOB is authoritative.
 const baseMember = z
   .object({
     given_name: givenName,
@@ -90,9 +105,13 @@ const baseMember = z
       .transform((v) => (v === "" || v == null ? null : v))
       .nullable(),
     age,
-    gender: z.enum(GENDER),
-    marital_status: z.enum(MARITAL_STATUS),
-    date_of_birth: optionalIsoDate,
+    gender: z.enum(GENDER, {
+      message: "Please select a gender.",
+    }),
+    marital_status: z.enum(MARITAL_STATUS, {
+      message: "Please select a marital status.",
+    }),
+    date_of_birth: requiredIsoDate,
     wedding_anniversary: optionalIsoDate,
   })
   .superRefine((m, ctx) => {

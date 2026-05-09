@@ -6,23 +6,32 @@
 //                        select with free-text Other override, and the two
 //                        "Same as primary" checkboxes for email + phone.
 //
-// All of the FR-02 / FR-03 field-level rules live here so both the /register
-// and /member/family/edit flows share the same UX.
+// UI rules (the client mirrors the server-authoritative rules in
+// lib/family/validation.ts):
+//   - Name, Gender, Marital status, DOB are MANDATORY on every member
+//   - Age is DERIVED from DOB (read-only display)
+//   - For minors (<18) Marital is force-locked to Single
+//   - Wedding Anniversary is shown on only ONE member of a couple — the
+//     "bearer" — and the partner sees a "shared with X" note instead
+//     (see computeCoupleAssignment in lib/family/couple.ts).
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   RELATIONSHIP,
   GENDER,
   MARITAL_STATUS,
 } from "@/lib/family/validation";
+import { ageFromDob } from "@/lib/family/couple";
 
 export type MemberFormState = {
   given_name: string;
   initiated: boolean;
   initiated_name: string;
-  age: string; // kept as string in form state; coerced at submit
-  gender: "Male" | "Female" | "Other";
-  marital_status: "Married" | "Single";
+  /** Derived from date_of_birth at submit time; carried in form state for
+   *  backward compatibility with the API body. */
+  age: string;
+  gender: "Male" | "Female" | "Other" | "";
+  marital_status: "Married" | "Single" | "";
   relationship: (typeof RELATIONSHIP)[number];
   relationship_other: string;
   email: string;
@@ -35,14 +44,24 @@ export type MemberFormState = {
   same_phone_as_primary: boolean;
 };
 
+/** Information the parent form computes and passes down to one member block
+ *  when this member's anniversary is shared with another member of the same
+ *  couple. The input is hidden; a note replaces it.
+ */
+export type SharedAnniversaryInfo = {
+  /** Name of the partner who enters the anniversary (e.g. "Ravi"). */
+  partnerName: string;
+};
+
 export function emptyMember(kind: "primary" | "secondary"): MemberFormState {
   return {
     given_name: "",
     initiated: false,
     initiated_name: "",
     age: "",
-    gender: "Male",
-    marital_status: "Single",
+    // Force explicit user selection — no default that can slip through.
+    gender: "" as const,
+    marital_status: "" as const,
     relationship: kind === "primary" ? "Self" : "Spouse",
     relationship_other: "",
     email: "",
@@ -65,7 +84,12 @@ export interface FamilyMemberBlockProps {
   emailLocked?: boolean;
   defaultOpen?: boolean;
   error?: string;
+  /** If set, this member is a couple partner whose anniversary is entered
+   *  elsewhere in the form. Hide the input + show a note. */
+  sharedAnniversary?: SharedAnniversaryInfo;
 }
+
+const TODAY_ISO = () => new Date().toISOString().slice(0, 10);
 
 export default function FamilyMemberBlock({
   kind,
@@ -77,6 +101,7 @@ export default function FamilyMemberBlock({
   emailLocked,
   defaultOpen,
   error,
+  sharedAnniversary,
 }: FamilyMemberBlockProps) {
   const blockId = useId();
   const [open, setOpen] = useState(
@@ -84,14 +109,35 @@ export default function FamilyMemberBlock({
   );
   const initiatedInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Age → marital_status lock (FR-02.5, FR-12.3)
-  const ageNum = Number(value.age);
+  // ─── Age derived from DOB ───────────────────────────────────────────
+  const derivedAge = useMemo(() => {
+    if (!value.date_of_birth) return null;
+    try {
+      const a = ageFromDob(value.date_of_birth);
+      if (a < 0 || a > 120) return null;
+      return a;
+    } catch {
+      return null;
+    }
+  }, [value.date_of_birth]);
+
+  // Keep form-state `age` in sync with DOB so submit picks the right value.
+  useEffect(() => {
+    const want = derivedAge == null ? "" : String(derivedAge);
+    if (value.age !== want) onChange({ ...value, age: want });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [derivedAge]);
+
+  const ageNum = derivedAge ?? Number(value.age);
   const isMinor = Number.isFinite(ageNum) && ageNum < 18;
+
+  // Age → marital_status lock (FR-02.5, FR-12.3)
   useEffect(() => {
     if (isMinor && value.marital_status !== "Single") {
       onChange({ ...value, marital_status: "Single" });
     }
-  }, [isMinor]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMinor]);
 
   // Initiated reveal → focus the initiated_name field
   useEffect(() => {
@@ -99,18 +145,6 @@ export default function FamilyMemberBlock({
       initiatedInputRef.current.focus();
     }
   }, [value.initiated]);
-
-  // DOB / age mismatch warning (FR-03.6)
-  const dobWarning = (() => {
-    if (!value.date_of_birth || !Number.isFinite(ageNum)) return null;
-    const y = Number(value.date_of_birth.slice(0, 4));
-    if (!Number.isFinite(y)) return null;
-    const approxAge = new Date().getFullYear() - y;
-    if (Math.abs(approxAge - ageNum) > 1) {
-      return `The age (${ageNum}) and date of birth (${value.date_of_birth}) don't look consistent. Please double-check.`;
-    }
-    return null;
-  })();
 
   const relOther = value.relationship === "Other";
   const isMarried = value.marital_status === "Married";
@@ -120,13 +154,14 @@ export default function FamilyMemberBlock({
     next: MemberFormState[K]
   ) => onChange({ ...value, [key]: next });
 
-  // Summary line for collapsed secondaries: "Spouse · Priya · age 38"
+  // Summary line
+  const ageLabel = derivedAge != null ? `age ${derivedAge}` : "";
   const summary =
     kind === "primary"
       ? `Your details${value.given_name ? ` — ${value.given_name}` : ""}`
       : `${relOther && value.relationship_other ? value.relationship_other : value.relationship}${
           value.given_name ? ` · ${value.given_name}` : ""
-        }${value.age ? ` · age ${value.age}` : ""}`;
+        }${ageLabel ? ` · ${ageLabel}` : ""}`;
 
   return (
     <details
@@ -174,7 +209,9 @@ export default function FamilyMemberBlock({
         {/* Name + initiated */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-sm font-medium text-gray-800">Name</span>
+            <span className="text-sm font-medium text-gray-800">
+              Name <span className="text-rose-600">*</span>
+            </span>
             <input
               type="text"
               required
@@ -205,7 +242,7 @@ export default function FamilyMemberBlock({
                 className="block mt-2"
               >
                 <span className="text-sm font-medium text-gray-800">
-                  Initiated name
+                  Initiated name <span className="text-rose-600">*</span>
                 </span>
                 <input
                   ref={initiatedInputRef}
@@ -227,7 +264,7 @@ export default function FamilyMemberBlock({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="block">
               <span className="text-sm font-medium text-gray-800">
-                Relationship to Primary
+                Relationship to Primary <span className="text-rose-600">*</span>
               </span>
               <select
                 value={value.relationship}
@@ -249,7 +286,7 @@ export default function FamilyMemberBlock({
             {relOther && (
               <label className="block">
                 <span className="text-sm font-medium text-gray-800">
-                  Please specify
+                  Please specify <span className="text-rose-600">*</span>
                 </span>
                 <input
                   type="text"
@@ -267,39 +304,63 @@ export default function FamilyMemberBlock({
           </div>
         )}
 
-        {/* Age, gender, marital */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* DOB + derived age + gender + marital */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-sm font-medium text-gray-800">Age</span>
+            <span className="text-sm font-medium text-gray-800">
+              Date of birth <span className="text-rose-600">*</span>
+            </span>
             <input
-              type="number"
+              type="date"
               required
-              min={0}
-              max={120}
-              value={value.age}
-              onChange={(e) => set("age", e.target.value)}
+              value={value.date_of_birth}
+              onChange={(e) => set("date_of_birth", e.target.value)}
+              max={TODAY_ISO()}
               className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-saffron-500 focus:ring-saffron-500"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              {derivedAge != null ? (
+                <>Age: <span className="font-semibold text-gray-700">{derivedAge}</span></>
+              ) : (
+                "Age will be calculated automatically."
+              )}
+            </p>
           </label>
+
           <label className="block">
-            <span className="text-sm font-medium text-gray-800">Gender</span>
+            <span className="text-sm font-medium text-gray-800">
+              Gender <span className="text-rose-600">*</span>
+            </span>
             <select
+              required
               value={value.gender}
               onChange={(e) =>
-                set("gender", e.target.value as MemberFormState["gender"])
+                set(
+                  "gender",
+                  e.target.value as MemberFormState["gender"]
+                )
               }
               className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-saffron-500 focus:ring-saffron-500"
             >
+              <option value="" disabled>
+                Select…
+              </option>
               {GENDER.map((g) => (
-                <option key={g}>{g}</option>
+                <option key={g} value={g}>
+                  {g}
+                </option>
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block">
             <span className="text-sm font-medium text-gray-800">
-              Marital status
+              Marital status <span className="text-rose-600">*</span>
             </span>
             <select
+              required
               value={value.marital_status}
               onChange={(e) =>
                 set(
@@ -311,8 +372,13 @@ export default function FamilyMemberBlock({
               className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 disabled:bg-gray-100"
               aria-describedby={isMinor ? `${blockId}-minor-note` : undefined}
             >
+              <option value="" disabled>
+                Select…
+              </option>
               {MARITAL_STATUS.map((m) => (
-                <option key={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
             {isMinor && (
@@ -325,6 +391,34 @@ export default function FamilyMemberBlock({
               </p>
             )}
           </label>
+
+          {/* Wedding anniversary (only one member of a couple shows this) */}
+          {isMarried && !sharedAnniversary && (
+            <label className="block">
+              <span className="text-sm font-medium text-gray-800">
+                Wedding anniversary{" "}
+                <span className="text-gray-500">(optional)</span>
+              </span>
+              <input
+                type="date"
+                value={value.wedding_anniversary}
+                onChange={(e) => set("wedding_anniversary", e.target.value)}
+                max={TODAY_ISO()}
+                className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-saffron-500 focus:ring-saffron-500"
+              />
+            </label>
+          )}
+          {isMarried && sharedAnniversary && (
+            <div className="block">
+              <div className="text-sm font-medium text-gray-800">
+                Wedding anniversary
+              </div>
+              <p className="mt-1 text-xs bg-saffron-50 border border-saffron-200 rounded-md px-3 py-2 text-gray-700">
+                Entered by <b>{sharedAnniversary.partnerName}</b> above.
+                We&rsquo;ll link the same date to both of you.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Email + phone */}
@@ -411,42 +505,6 @@ export default function FamilyMemberBlock({
               </label>
             )}
           </div>
-        </div>
-
-        {/* Life events — DOB + anniversary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-sm font-medium text-gray-800">
-              Date of birth <span className="text-gray-500">(optional)</span>
-            </span>
-            <input
-              type="date"
-              value={value.date_of_birth}
-              onChange={(e) => set("date_of_birth", e.target.value)}
-              max={new Date().toISOString().slice(0, 10)}
-              className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-saffron-500 focus:ring-saffron-500"
-            />
-            {dobWarning && (
-              <p className="mt-1 text-xs text-amber-700" role="status">
-                {dobWarning}
-              </p>
-            )}
-          </label>
-          {isMarried && (
-            <label className="block">
-              <span className="text-sm font-medium text-gray-800">
-                Wedding anniversary{" "}
-                <span className="text-gray-500">(optional)</span>
-              </span>
-              <input
-                type="date"
-                value={value.wedding_anniversary}
-                onChange={(e) => set("wedding_anniversary", e.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
-                className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-saffron-500 focus:ring-saffron-500"
-              />
-            </label>
-          )}
         </div>
 
         {error && (
