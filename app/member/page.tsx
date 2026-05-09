@@ -341,6 +341,87 @@ export default async function MemberDashboard({
       .filter((r) => r.date !== "");
   }
 
+  // 5. Family history grid (Primary only): for every session that has
+  //    passed (date <= today) or is today, which family member attended?
+  //    Used by the My Attendance card to show the whole family's history.
+  type FamilyHistoryCell = { attended: boolean };
+  type FamilyHistoryRow = {
+    week: number;
+    date: string;
+    title: string;
+    cells: Record<string, FamilyHistoryCell>; // family_member_id -> cell
+  };
+  let familyHistory: FamilyHistoryRow[] = [];
+  let familyHistoryMembers: Array<{ id: string; label: string }> = [];
+  if (isApprovedPrimary && familyRosterRaw.length > 0) {
+    // Past + today sessions, ordered newest-first
+    const { data: pastSessions } = await supabase
+      .from("sessions")
+      .select("week, date, title")
+      .lte("date", today)
+      .order("date", { ascending: false });
+    const pastWeeks = (pastSessions ?? []).map((s: any) => s.week as number);
+
+    if (pastWeeks.length > 0) {
+      const rosterIds = familyRosterRaw.map((m) => m.id);
+      const { data: fmaRows } = await supabase
+        .from("family_member_attendance")
+        .select("family_member_id, session_week")
+        .in("family_member_id", rosterIds)
+        .in("session_week", pastWeeks);
+
+      // Family-wide coarse rows (legacy): if family_attendance has a week,
+      // we render all members as attended for that week (best we can do
+      // given the data we have; the new checklist writes per-member rows).
+      const { data: famCoarseRows } = await supabase
+        .from("family_attendance")
+        .select("session_week")
+        .eq("family_id", myFamily!.id)
+        .in("session_week", pastWeeks);
+
+      const fmaByWeekMember = new Set<string>();
+      for (const r of (fmaRows as any) ?? []) {
+        fmaByWeekMember.add(`${r.session_week}|${r.family_member_id}`);
+      }
+      const coarseWeeks = new Set<number>(
+        ((famCoarseRows as any) ?? []).map((r: any) => r.session_week as number)
+      );
+
+      familyHistoryMembers = familyRosterRaw
+        // Stable order: Primary first, then others by the order they were
+        // inserted (approximated by id sort).
+        .slice()
+        .sort((a, b) => {
+          if (a.kind === "Primary" && b.kind !== "Primary") return -1;
+          if (a.kind !== "Primary" && b.kind === "Primary") return 1;
+          return a.id < b.id ? -1 : 1;
+        })
+        .map((m) => ({
+          id: m.id,
+          label:
+            m.initiated && m.initiated_name
+              ? String(m.initiated_name).split(/\s+/)[0]
+              : String(m.given_name).split(/\s+/)[0],
+        }));
+
+      familyHistory = ((pastSessions as any) ?? []).map((s: any) => ({
+        week: s.week as number,
+        date: s.date as string,
+        title: s.title as string,
+        cells: Object.fromEntries(
+          familyHistoryMembers.map((m) => [
+            m.id,
+            {
+              attended:
+                fmaByWeekMember.has(`${s.week}|${m.id}`) ||
+                coarseWeeks.has(s.week),
+            },
+          ])
+        ),
+      }));
+    }
+  }
+
   const name = firstName(session.user.name, session.user.email);
 
   // Build the greeting line per FR-09.
@@ -503,50 +584,116 @@ export default async function MemberDashboard({
         )}
       </section>
 
-      {/* 3. My attendance */}
+      {/* 3. My attendance / Family attendance history */}
       <section className="mt-10">
-        <h2 className="font-serif text-2xl text-krishna-800">My attendance</h2>
+        <h2 className="font-serif text-2xl text-krishna-800">
+          {isApprovedPrimary && familyHistoryMembers.length > 1
+            ? "Family attendance"
+            : "My attendance"}
+        </h2>
         <div className="om-divider mt-2 mb-4" />
-        <div className="bg-white border border-saffron-100 rounded-2xl p-6 shadow-sm">
-          <div className="text-gray-700">
-            You have attended{" "}
-            <span className="font-semibold text-krishna-800">
-              {attendanceCount}
-            </span>{" "}
-            of{" "}
-            <span className="font-semibold text-krishna-800">
-              {totalSessions}
-            </span>{" "}
-            sessions so far.
-          </div>
-          {recentWithTitles.length > 0 ? (
-            <>
-              <div className="mt-4 text-xs uppercase tracking-widest text-saffron-700">
-                Most recent sessions attended
-              </div>
-              <ul className="mt-2 divide-y divide-saffron-100">
-                {recentWithTitles.map((r) => (
-                  <li key={r.week} className="py-2 flex items-baseline gap-3">
-                    <span className="text-sm text-gray-500 w-20 shrink-0">
-                      Week {r.week}
-                    </span>
-                    <span className="text-sm text-gray-500 w-40 shrink-0 hidden sm:block">
-                      {formatPrettyDate(r.date)}
-                    </span>
-                    <span className="text-sm text-krishna-800 font-medium">
-                      {r.title}
-                    </span>
-                  </li>
+
+        {isApprovedPrimary && familyHistory.length > 0 ? (
+          <div className="bg-white border border-saffron-100 rounded-2xl p-4 md:p-6 shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wider text-saffron-700">
+                  <th className="py-2 pr-3 sticky left-0 bg-white">Week</th>
+                  <th className="py-2 pr-3 hidden md:table-cell">Date</th>
+                  <th className="py-2 pr-3">Session</th>
+                  {familyHistoryMembers.map((m) => (
+                    <th key={m.id} className="py-2 px-2 text-center">
+                      {m.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-saffron-100">
+                {familyHistory.map((row) => (
+                  <tr key={row.week}>
+                    <td className="py-2 pr-3 font-medium text-gray-700 sticky left-0 bg-white">
+                      {row.week}
+                    </td>
+                    <td className="py-2 pr-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
+                      {formatPrettyDate(row.date)}
+                    </td>
+                    <td className="py-2 pr-3 text-krishna-800">{row.title}</td>
+                    {familyHistoryMembers.map((m) => (
+                      <td
+                        key={m.id}
+                        className="py-2 px-2 text-center"
+                        aria-label={
+                          row.cells[m.id]?.attended
+                            ? `${m.label} attended Week ${row.week}`
+                            : `${m.label} did not attend Week ${row.week}`
+                        }
+                      >
+                        {row.cells[m.id]?.attended ? (
+                          <span className="text-green-600" aria-hidden>
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="text-gray-300" aria-hidden>
+                            ·
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </ul>
-            </>
-          ) : (
-            <p className="mt-3 text-sm text-gray-500">
-              You haven&rsquo;t marked attendance yet. Attendance can only be
-              marked on the Sunday of a scheduled session.
+              </tbody>
+            </table>
+            <p className="mt-3 text-xs text-gray-500">
+              ✓ = present. Blank = not marked. Older sessions marked
+              family-wide (before per-member checklist) show everyone as
+              present for that week.
             </p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-saffron-100 rounded-2xl p-6 shadow-sm">
+            <div className="text-gray-700">
+              You have attended{" "}
+              <span className="font-semibold text-krishna-800">
+                {attendanceCount}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-krishna-800">
+                {totalSessions}
+              </span>{" "}
+              sessions so far.
+            </div>
+            {recentWithTitles.length > 0 ? (
+              <>
+                <div className="mt-4 text-xs uppercase tracking-widest text-saffron-700">
+                  Most recent sessions attended
+                </div>
+                <ul className="mt-2 divide-y divide-saffron-100">
+                  {recentWithTitles.map((r) => (
+                    <li
+                      key={r.week}
+                      className="py-2 flex items-baseline gap-3"
+                    >
+                      <span className="text-sm text-gray-500 w-20 shrink-0">
+                        Week {r.week}
+                      </span>
+                      <span className="text-sm text-gray-500 w-40 shrink-0 hidden sm:block">
+                        {formatPrettyDate(r.date)}
+                      </span>
+                      <span className="text-sm text-krishna-800 font-medium">
+                        {r.title}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-gray-500">
+                You haven&rsquo;t marked attendance yet. Attendance can only
+                be marked on the Sunday of a scheduled session.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 4. Upcoming sessions */}
