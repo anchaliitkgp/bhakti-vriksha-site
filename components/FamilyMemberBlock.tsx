@@ -80,6 +80,10 @@ export interface FamilyMemberBlockProps {
   onRemove?: () => void; // secondary only
   primaryEmail?: string; // secondary only — shown when "Same as primary" is ticked
   primaryPhone?: string; // secondary only
+  /** Secondary only: primary's gender. When set and this secondary is the
+   *  Spouse, the spouse's gender is auto-populated to the opposite so the
+   *  user doesn't have to pick it manually. */
+  primaryGender?: MemberFormState["gender"];
   /** When mode="edit" and this member is the signed-in primary, email is read-only per FR-10.3 */
   emailLocked?: boolean;
   defaultOpen?: boolean;
@@ -128,6 +132,7 @@ export default function FamilyMemberBlock({
   onRemove,
   primaryEmail,
   primaryPhone,
+  primaryGender,
   emailLocked,
   defaultOpen,
   error,
@@ -180,9 +185,23 @@ export default function FamilyMemberBlock({
   // Only fires when the target field is currently empty, so it never silently
   // overrides an explicit user choice. Primary's relationship is locked to
   // 'Self' so this effect is a no-op for the primary.
+  //
+  // Special case for Spouse: spouse's gender is derived from the primary's
+  // gender (opposite), not from the relationship map. This only kicks in
+  // once the primary has picked their own gender.
   useEffect(() => {
     if (kind !== "secondary") return;
-    const suggestedGender = GENDER_BY_RELATIONSHIP[value.relationship];
+
+    let suggestedGender: MemberFormState["gender"] | undefined;
+    if (value.relationship === "Spouse") {
+      if (primaryGender === "Male") suggestedGender = "Female";
+      else if (primaryGender === "Female") suggestedGender = "Male";
+      // If primary is "Other" or unset, leave spouse's gender blank for the
+      // user to choose.
+    } else {
+      suggestedGender = GENDER_BY_RELATIONSHIP[value.relationship];
+    }
+
     const suggestedMarital = MARITAL_BY_RELATIONSHIP[value.relationship];
 
     const patch: Partial<MemberFormState> = {};
@@ -192,7 +211,7 @@ export default function FamilyMemberBlock({
 
     if (Object.keys(patch).length > 0) onChange({ ...value, ...patch });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.relationship, kind]);
+  }, [value.relationship, primaryGender, kind]);
 
   const relOther = value.relationship === "Other";
   const isMarried = value.marital_status === "Married";

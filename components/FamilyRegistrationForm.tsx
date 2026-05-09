@@ -407,6 +407,7 @@ export default function FamilyRegistrationForm({
             onRemove={() => removeSecondary(realIdx)}
             primaryEmail={primary.email}
             primaryPhone={primary.phone}
+            primaryGender={primary.gender}
             sharedAnniversary={
               s.marital_status === "Married" &&
               assigned &&
