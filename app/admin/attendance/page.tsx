@@ -9,6 +9,7 @@ import AdminAttendanceFamilyPicker, {
   type AttendanceFamilyOption,
 } from "@/components/AdminAttendanceFamilyPicker";
 import AdminMemberTile from "@/components/AdminMemberTile";
+import { effectiveTodayIST, isDateOverridden } from "@/lib/auth/dev-overrides";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,14 +33,10 @@ function formatPrettyDate(iso: string): string {
   });
 }
 
-function todayIST(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-}
-
 export default async function AdminAttendancePage({
   searchParams,
 }: {
-  searchParams: { family?: string; member?: string };
+  searchParams: { family?: string; member?: string; today?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email)
@@ -50,7 +47,19 @@ export default async function AdminAttendancePage({
   }
 
   const supabase = supabaseServer();
-  const today = todayIST();
+  // Honour the same ?today= dev-only override used on /member so admins can
+  // inspect future-dated test attendance during dev work. On prod this
+  // always returns the real IST date.
+  const today = effectiveTodayIST({
+    realRole: role,
+    realEmail: session.user.email.toLowerCase(),
+    todayParam: searchParams?.today,
+  });
+  const dateOverridden = isDateOverridden({
+    realRole: role,
+    realEmail: session.user.email.toLowerCase(),
+    todayParam: searchParams?.today,
+  });
 
   // 1. Families dropdown — Approved only, sorted by primary given name.
   const { data: approvedFamilies } = await supabase
@@ -240,6 +249,13 @@ export default async function AdminAttendancePage({
         </Link>
       </div>
       <div className="om-divider mt-2 mb-6" />
+
+      {dateOverridden && (
+        <div className="mb-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg px-4 py-3 text-sm text-yellow-900">
+          ⚠ Dev mode — today is simulated as <b>{today}</b>. Remove{" "}
+          <code className="text-xs">?today=</code> to use real IST date.
+        </div>
+      )}
 
       <AdminAttendanceFamilyPicker
         families={options}
