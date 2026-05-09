@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
 import AttendanceButton from "@/components/AttendanceButton";
+import RegisterFamilyBanner from "@/components/RegisterFamilyBanner";
 import { resolveEffectiveRole, isRoleOverridden, type Role } from "@/lib/auth/roles";
 import { effectiveTodayIST, isDateOverridden } from "@/lib/auth/dev-overrides";
 
@@ -310,6 +311,17 @@ export default async function MemberDashboard({
             )}
           </ul>
         </div>
+      )}
+
+      {/* Register-your-family nudge for signed-in users without a family row */}
+      {!isPrimary && (
+        <RegisterFamilyBanner
+          kind={
+            realRole === "organiser" || realRole === "manager"
+              ? "organiser"
+              : "member"
+          }
+        />
       )}
 
       {/* 2. Today's session block */}

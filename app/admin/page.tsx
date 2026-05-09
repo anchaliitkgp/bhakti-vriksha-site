@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
+import RegisterFamilyBanner from "@/components/RegisterFamilyBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,14 @@ export default async function AdminPage() {
     .select("*", { count: "exact", head: true })
     .eq("status", "Pending");
 
+  // Has this organiser/manager registered their own family?
+  const { data: myFamily } = await supabase
+    .from("families")
+    .select("id")
+    .eq("primary_email", session.user.email.toLowerCase())
+    .maybeSingle();
+  const hasFamily = !!myFamily;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 md:py-12">
       {/* Header strip */}
@@ -55,6 +64,9 @@ export default async function AdminPage() {
           </span>
         </div>
       </section>
+
+      {/* Register-your-family nudge for organisers who haven't registered yet */}
+      {!hasFamily && <RegisterFamilyBanner kind="organiser" />}
 
       {/* Live tool — Family registrations */}
       <section className="mt-8">

@@ -74,24 +74,24 @@
 - [x] 35. Update `components/AttendanceButton.tsx` to accept `scope` prop
 - [x] 36. Update `components/Navbar.tsx` — no change needed (admin nav already routes via /admin which now points at /admin/registrations)
 - [x] 37. Update `app/admin/page.tsx` — link to `/admin/registrations` and surface pending count
-- [ ] 38. Checkpoint — full happy path on dev
+- [x] 38. Checkpoint — full happy path on dev
 
 ---
 
 ## Group 6 — Manual test matrix on dev (design §15.1)
 
-- [ ] 39. Test scenarios 1–6 — registration form validation
-- [ ] 40. Test scenarios 7–10 — approval flow + concurrency
-- [ ] 41. Test scenarios 11–12 — family attendance + dedup
-- [ ] 42. Test scenarios 13–16 — edit flow + state machine
-- [ ] 43. Test scenarios 17–20 — invariants + guards + performance
-- [ ] 44. Checkpoint — dev sign-off
+- [x] 39. Test scenarios 1–6 — registration form validation
+- [x] 40. Test scenarios 7–10 — approval flow + concurrency
+- [x] 41. Test scenarios 11–12 — family attendance + dedup
+- [x] 42. Test scenarios 13–16 — edit flow + state machine
+- [x] 43. Test scenarios 17–20 — invariants + guards + performance
+- [x] 44. Checkpoint — dev sign-off
 
 ---
 
 ## Group 7 — Production rollout
 
-- [ ] 45. Apply migrations 007–015 to **prod Supabase**
-- [ ] 46. Deploy to Vercel prod
-- [ ] 47. Smoke-test prod with a throwaway Gmail
-- [ ] 48. Final checkpoint — announce and close out
+- [x] 45. Apply migrations 007–015 to **prod Supabase**
+- [x] 46. Deploy to Vercel prod
+- [x] 47. Smoke-test prod with a throwaway Gmail
+- [x] 48. Final checkpoint — announce and close out
