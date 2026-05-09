@@ -19,23 +19,34 @@ export default async function Register() {
   // send them to the edit page instead of showing a fresh registration form.
   // This prevents accidental duplicate submissions and lets them keep their
   // details up to date.
+  //
+  // IMPORTANT: redirect() in Next.js App Router throws internally — it MUST
+  // NOT be wrapped in a try/catch that catches everything. We only catch the
+  // DB lookup, then call redirect() OUTSIDE the try so the framework can
+  // handle its own throw.
+  let existingFamilyId: string | null = null;
   const session = await getServerSession(authOptions);
   if (session?.user?.email) {
     const email = session.user.email.toLowerCase();
     try {
       const supabase = supabaseServer();
-      const { data: family } = await supabase
+      const { data: family, error } = await supabase
         .from("families")
         .select("id, status")
         .eq("primary_email", email)
         .maybeSingle();
-      if (family?.id) {
-        redirect("/member/family/edit");
+      if (error) {
+        console.error("[register-redirect] families lookup error:", error.message);
       }
-    } catch {
-      // If the lookup fails, fall through to the form — better to let them
-      // register (server will reject duplicates with 409) than to block.
+      if (family?.id) {
+        existingFamilyId = family.id;
+      }
+    } catch (err) {
+      console.error("[register-redirect] threw:", err);
     }
+  }
+  if (existingFamilyId) {
+    redirect("/member/family/edit");
   }
 
   return (
