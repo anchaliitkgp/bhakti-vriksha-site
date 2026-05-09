@@ -67,6 +67,16 @@ export type GalleryItem =
       featured?: boolean; // true = show in highlight reel at top
     }
   | {
+      kind: "supabase-album";
+      slug: string; // matches the folder name inside the `gallery` bucket
+      title: string;
+      story: string;
+      theme: GalleryTheme;
+      date: string;
+      fallbackUrl?: string; // Google Photos link shown until photos are uploaded
+      featured?: boolean;
+    }
+  | {
       kind: "photos-album";
       url: string; // https://photos.app.goo.gl/...
       title: string;
@@ -103,8 +113,9 @@ export const GALLERY_ITEMS: GalleryItem[] = [
 
   // ─── Festival Utsavs ─────────────────────────────────────────
   {
-    kind: "photos-album",
-    url: "https://photos.app.goo.gl/5CBbm3qhCbUw3n5h7",
+    kind: "supabase-album",
+    slug: "brahmostava-2026",
+    fallbackUrl: "https://photos.app.goo.gl/5CBbm3qhCbUw3n5h7",
     title: "Brahmotsava 2026",
     story:
       "Five days, one sanga, countless opportunities for seva. Brahmotsava — the festival of festivals — saw our family circumambulating the temple with the Lordships, singing Their glories, and feasting as one.",
@@ -112,8 +123,9 @@ export const GALLERY_ITEMS: GalleryItem[] = [
     date: "2026",
   },
   {
-    kind: "photos-album",
-    url: "https://photos.app.goo.gl/cMPh8etnruFPyxMx6",
+    kind: "supabase-album",
+    slug: "holi-2026",
+    fallbackUrl: "https://photos.app.goo.gl/cMPh8etnruFPyxMx6",
     title: "Holi 2026",
     story:
       "The festival of colours reminds us that bhakti transcends every barrier. Clouds of abir, laughter of children, and kirtan carrying through the courtyard — this is how Krishna's holi is played.",
@@ -123,8 +135,9 @@ export const GALLERY_ITEMS: GalleryItem[] = [
 
   // ─── Yatras & Pilgrimage ─────────────────────────────────────
   {
-    kind: "photos-album",
-    url: "https://photos.app.goo.gl/EtABPPxWiPBoeqed6",
+    kind: "supabase-album",
+    slug: "jagannath-yatra",
+    fallbackUrl: "https://photos.app.goo.gl/EtABPPxWiPBoeqed6",
     title: "Jagannath Rath Yatra",
     story:
       "Puri comes to Bengaluru. Families pulled the ropes of Lord Jagannath's chariot through the streets, offering kirtan and japa with every step. Witnessing the Lord come to us, instead of us going to Him — a memory to carry for a lifetime.",
@@ -134,8 +147,9 @@ export const GALLERY_ITEMS: GalleryItem[] = [
 
   // ─── Insightful Sessions ─────────────────────────────────────
   {
-    kind: "photos-album",
-    url: "https://photos.app.goo.gl/JtYHvejV8zZX5Ut97",
+    kind: "supabase-album",
+    slug: "art-of-parenting",
+    fallbackUrl: "https://photos.app.goo.gl/JtYHvejV8zZX5Ut97",
     title: "Art of Parenting — a Krishna Conscious Perspective",
     story:
       "Raising children is the deepest seva a householder performs. In this session, our senior devotees unpacked how Bhagavad-gita's wisdom shapes everyday parenting — from handling tantrums to modelling bhakti at home.",
@@ -145,8 +159,9 @@ export const GALLERY_ITEMS: GalleryItem[] = [
 
   // ─── Sanga Moments ───────────────────────────────────────────
   {
-    kind: "photos-album",
-    url: "https://photos.app.goo.gl/hHoRUJ5SjSeun2jj6",
+    kind: "supabase-album",
+    slug: "birthday-celebrations",
+    fallbackUrl: "https://photos.app.goo.gl/hHoRUJ5SjSeun2jj6",
     title: "Birthday Celebrations",
     story:
       "Every devotee is a gift from Krishna. We cut cakes, chant Hare Krishna, and offer birthday blessings so the years of our lives become the years of our bhakti. Little moments that bind a sanga into a family.",

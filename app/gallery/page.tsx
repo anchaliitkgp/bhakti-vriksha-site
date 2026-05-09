@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import YouTubeLite from "@/components/YouTubeLite";
+import AlbumCollage, { type AlbumPhotoLite } from "@/components/AlbumCollage";
 import {
   GALLERY_ITEMS,
   THEMES,
   type GalleryItem,
   type GalleryTheme,
 } from "@/data/gallery";
+import { listAlbumPhotos } from "@/lib/gallery";
+
+export const revalidate = 3600; // re-list album contents hourly
 
 export const metadata: Metadata = {
   title: "Gallery · Bhakti Vriksha Radha Madan Mohan",
@@ -14,8 +18,6 @@ export const metadata: Metadata = {
     "Festival utsavs, yatras, sessions, and sanga moments from our Bhakti Vriksha Radha Madan Mohan family.",
 };
 
-// Brand-accent classes per theme. Tailwind needs these as literal strings
-// during build, so we can't compose them dynamically.
 const RIBBON_CLASSES: Record<string, string> = {
   saffron: "from-saffron-200 via-saffron-300 to-saffron-400",
   krishna: "from-krishna-200 via-krishna-300 to-krishna-500",
@@ -29,7 +31,20 @@ const CARD_RING: Record<string, string> = {
   rose: "hover:ring-rose-400",
 };
 
-export default function Gallery() {
+export default async function Gallery() {
+  // Resolve supabase-album photo lists once per render.
+  const supabaseSlugs = GALLERY_ITEMS
+    .filter((it) => it.kind === "supabase-album")
+    .map((it) => (it as { slug: string }).slug);
+
+  const photosBySlug = new Map<string, AlbumPhotoLite[]>();
+  await Promise.all(
+    supabaseSlugs.map(async (slug) => {
+      const photos = await listAlbumPhotos(slug);
+      photosBySlug.set(slug, photos);
+    })
+  );
+
   const featured = GALLERY_ITEMS.filter(
     (it) => "featured" in it && it.featured
   );
@@ -61,26 +76,19 @@ export default function Gallery() {
       </section>
 
       {/* Featured video */}
-      {featured.length > 0 && (
+      {featured.length > 0 && featured[0].kind === "youtube-video" && (
         <section className="max-w-6xl mx-auto px-4 py-10 md:py-14">
           <div className="text-xs uppercase tracking-widest text-saffron-700">
             Featured
           </div>
           <h2 className="font-serif text-2xl md:text-3xl text-krishna-800 mt-1">
-            {featured[0].kind === "youtube-video" ? featured[0].title : ""}
+            {featured[0].title}
           </h2>
           <div className="mt-5 grid md:grid-cols-[3fr_2fr] gap-6 items-start">
-            {featured[0].kind === "youtube-video" && (
-              <>
-                <YouTubeLite
-                  videoId={featured[0].id}
-                  title={featured[0].title}
-                />
-                <p className="text-gray-700 leading-relaxed text-base md:text-lg">
-                  {featured[0].story}
-                </p>
-              </>
-            )}
+            <YouTubeLite videoId={featured[0].id} title={featured[0].title} />
+            <p className="text-gray-700 leading-relaxed text-base md:text-lg">
+              {featured[0].story}
+            </p>
           </div>
         </section>
       )}
@@ -89,7 +97,9 @@ export default function Gallery() {
       {THEMES.map((theme) => {
         const items = GALLERY_ITEMS.filter(
           (it) =>
-            (it.kind === "photos-album" || it.kind === "youtube-video") &&
+            (it.kind === "photos-album" ||
+              it.kind === "supabase-album" ||
+              it.kind === "youtube-video") &&
             !("featured" in it && it.featured) &&
             "theme" in it &&
             (it as { theme: GalleryTheme }).theme === theme.id
@@ -123,6 +133,7 @@ export default function Gallery() {
                 <AlbumCard
                   key={idx}
                   item={it}
+                  photosBySlug={photosBySlug}
                   ringClass={CARD_RING[theme.ribbonColor] ?? ""}
                 />
               ))}
@@ -206,11 +217,28 @@ export default function Gallery() {
 // ─── Album card ───────────────────────────────────────────────────────
 function AlbumCard({
   item,
+  photosBySlug,
   ringClass,
 }: {
   item: GalleryItem;
+  photosBySlug: Map<string, AlbumPhotoLite[]>;
   ringClass: string;
 }) {
+  if (item.kind === "supabase-album") {
+    const photos = photosBySlug.get(item.slug) ?? [];
+    return (
+      <AlbumCollage
+        slug={item.slug}
+        title={item.title}
+        story={item.story}
+        date={item.date}
+        photos={photos}
+        fallbackUrl={item.fallbackUrl}
+        ringClass={ringClass}
+      />
+    );
+  }
+
   if (item.kind === "photos-album") {
     return (
       <a
@@ -234,9 +262,7 @@ function AlbumCard({
             <h3 className="font-serif text-lg text-krishna-800">
               {item.title}
             </h3>
-            <span className="text-xs text-gray-500 shrink-0">
-              {item.date}
-            </span>
+            <span className="text-xs text-gray-500 shrink-0">{item.date}</span>
           </div>
           <p className="mt-2 text-sm text-gray-700 leading-relaxed">
             {item.story}
@@ -245,6 +271,7 @@ function AlbumCard({
       </a>
     );
   }
+
   if (item.kind === "youtube-video") {
     return (
       <div
@@ -256,9 +283,7 @@ function AlbumCard({
             <h3 className="font-serif text-lg text-krishna-800">
               {item.title}
             </h3>
-            <span className="text-xs text-gray-500 shrink-0">
-              {item.date}
-            </span>
+            <span className="text-xs text-gray-500 shrink-0">{item.date}</span>
           </div>
           <p className="mt-2 text-sm text-gray-700 leading-relaxed">
             {item.story}
@@ -267,5 +292,6 @@ function AlbumCard({
       </div>
     );
   }
+
   return null;
 }
