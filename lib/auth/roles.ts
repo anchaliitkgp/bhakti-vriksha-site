@@ -12,6 +12,22 @@ export const ROLE_ALLOWLIST: Record<string, Role> = {
 };
 
 /**
+ * Extra organisers used only in non-production builds — lets us test the
+ * Organiser UX on dev / localhost without touching the prod allowlist.
+ * These entries are merged into ROLE_ALLOWLIST when NODE_ENV !== "production".
+ */
+const DEV_EXTRA_ORGANISERS: Record<string, Role> = {
+  "divya.nayak14@gmail.com": "organiser",
+  "anchaljbp1986@gmail.com": "organiser",
+};
+
+/** Resolved allowlist for the current environment (code-level). */
+export const EFFECTIVE_ROLE_ALLOWLIST: Record<string, Role> =
+  process.env.NODE_ENV === "production"
+    ? ROLE_ALLOWLIST
+    : { ...ROLE_ALLOWLIST, ...DEV_EXTRA_ORGANISERS };
+
+/**
  * Resolve a role for a given email.
  * - null / undefined / empty    → "guest"
  * - email in the allowlist      → that role
@@ -20,7 +36,7 @@ export const ROLE_ALLOWLIST: Record<string, Role> = {
 export function roleFor(email: string | null | undefined): Role {
   if (!email) return "guest";
   const normalized = email.toLowerCase();
-  return ROLE_ALLOWLIST[normalized] ?? "member";
+  return EFFECTIVE_ROLE_ALLOWLIST[normalized] ?? "member";
 }
 
 // ─── Dev role override ─────────────────────────────────────────────────────
