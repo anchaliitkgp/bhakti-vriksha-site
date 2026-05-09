@@ -12,7 +12,10 @@
 // Once the Organiser curriculum editor ships (Phase 2), Organisers will edit
 // the DB directly via the web UI, and this file becomes historical seed only.
 
-export type SessionCategory = "Gita / Core" | "Practical (HG Radheshyam Prabhu)";
+export type SessionCategory =
+  | "Gita / Core"
+  | "Practical (HG Radheshyam Prabhu)"
+  | "Special / Guest Session";
 
 export interface Session {
   week: number;

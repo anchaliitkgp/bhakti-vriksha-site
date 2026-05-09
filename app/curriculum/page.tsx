@@ -33,6 +33,10 @@ export default async function Curriculum() {
           <span className="w-3 h-3 rounded-full bg-saffron-100 border border-saffron-400 inline-block" />
           Practical (HG Radheshyam Prabhu)
         </span>
+        <span className="inline-flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-krishna-50 border border-krishna-400 inline-block" />
+          Special / Guest Session
+        </span>
       </div>
 
       <div className="overflow-x-auto border border-gray-200 rounded-lg">
@@ -49,10 +53,17 @@ export default async function Curriculum() {
           <tbody>
             {schedule.map((s) => {
               const isPractical = s.category.startsWith("Practical");
+              const isSpecial = s.category.startsWith("Special");
               return (
                 <tr
                   key={s.week}
-                  className={isPractical ? "bg-saffron-50" : "bg-white"}
+                  className={
+                    isSpecial
+                      ? "bg-krishna-50"
+                      : isPractical
+                      ? "bg-saffron-50"
+                      : "bg-white"
+                  }
                 >
                   <td className="p-3 font-semibold text-gray-700 border-t">
                     {s.week}
@@ -70,6 +81,11 @@ export default async function Curriculum() {
                     {isPractical && (
                       <div className="text-xs uppercase tracking-wider text-saffron-700 mt-0.5">
                         Practical
+                      </div>
+                    )}
+                    {isSpecial && (
+                      <div className="text-xs uppercase tracking-wider text-krishna-700 mt-0.5">
+                        Special / Guest
                       </div>
                     )}
                   </td>

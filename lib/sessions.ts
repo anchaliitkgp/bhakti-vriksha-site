@@ -17,7 +17,8 @@ import {
 
 export type SessionCategory =
   | "Gita / Core"
-  | "Practical (HG Radheshyam Prabhu)";
+  | "Practical (HG Radheshyam Prabhu)"
+  | "Special / Guest Session";
 
 export interface Session {
   week: number;
