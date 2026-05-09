@@ -1,6 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { roleFor, ROLE_ALLOWLIST } from "@/lib/auth/roles";
+import { roleFor, EFFECTIVE_ROLE_ALLOWLIST } from "@/lib/auth/roles";
 import { isApprovedFamilyEmail } from "@/lib/auth/db-allowlist";
 import { supabaseServer } from "@/lib/supabase";
 
@@ -60,7 +60,9 @@ export const authOptions: NextAuthOptions = {
         const email = user.email.toLowerCase();
 
         // 1. Code allowlist wins. Upsert + return.
-        const hard = ROLE_ALLOWLIST[email];
+        //    Uses EFFECTIVE_ROLE_ALLOWLIST so dev-only organisers work on
+        //    the dev preview build (NODE_ENV !== "production").
+        const hard = EFFECTIVE_ROLE_ALLOWLIST[email];
         if (hard && hard !== "guest") {
           await upsertMemberSafe(user, account, hard);
           return true;
