@@ -2,12 +2,16 @@
 // Sunday or swapping Google accounts.
 //
 // Safety rails:
-//   1. All overrides are no-ops in production (`process.env.NODE_ENV === "production"`)
-//   2. Only callable by the Website Manager — see `resolveEffectiveRole` /
-//      `effectiveTodayIST` below.
-//   3. Only YYYY-MM-DD values are accepted as the date override.
+//   1. All overrides are no-ops in production
+//      (NODE_ENV=production AND VERCEL_ENV=production).
+//   2. The date override is allowed for ANY signed-in user on dev preview
+//      + localhost, so cross-role testing (Member / Organiser / Manager)
+//      works without switching accounts.
+//   3. The role override (?as=) in roles.ts stays Manager-only because
+//      impersonation is a stronger-intent action than just time-shifting.
+//   4. Only YYYY-MM-DD values are accepted as the date override.
 
-import { ROLE_ALLOWLIST, type Role } from "./roles";
+import { type Role } from "./roles";
 
 // Same distinction as lib/auth/roles.ts: Vercel sets NODE_ENV=production
 // on preview deployments too, so we must also check VERCEL_ENV.
@@ -23,9 +27,12 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Returns the "today" date string in IST, honouring a ?today=YYYY-MM-DD
- * query param when the caller is the Website Manager in a non-prod build.
+ * query param when allowed.
  *
- * Anyone else (Members, Organisers, anonymous) always sees the real IST date.
+ * Who can override:
+ *   - Production: nobody (real IST date always)
+ *   - Dev preview + localhost: any signed-in user
+ *   - Anonymous visitors: always real IST date
  */
 export function effectiveTodayIST(params: {
   realRole: Role;
@@ -38,10 +45,7 @@ export function effectiveTodayIST(params: {
 
   if (!isNonProdBuild()) return real;
   if (!params.todayParam) return real;
-  if (params.realRole !== "manager") return real;
-
-  const normalized = (params.realEmail ?? "").toLowerCase();
-  if (ROLE_ALLOWLIST[normalized] !== "manager") return real;
+  if (params.realRole === "guest") return real;
 
   if (!DATE_RE.test(params.todayParam)) return real;
 
