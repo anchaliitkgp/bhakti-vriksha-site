@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Resources · Bhakti Vriksha Radha Madan Mohan",
+  description:
+    "Curated reading and listening — Srila Prabhupada's books on Vedabase, HG Radheshyam Prabhu's newcomer courses, and Bhakti Vriksha study materials.",
+};
+
 const groups = [
   {
     title: "Srila Prabhupada's Books (Vedabase)",

@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Gallery · Bhakti Vriksha Radha Madan Mohan",
+  description:
+    "Moments from our Sunday sessions, kirtans, goushala visits, pilgrimages, and festivals.",
+};
+
 export default function Gallery() {
   const placeholders = Array.from({ length: 9 }, (_, i) => i);
   return (

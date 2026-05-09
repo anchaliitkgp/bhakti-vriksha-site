@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About · Bhakti Vriksha Radha Madan Mohan",
+  description:
+    "A weekly Sunday sanga for married couples, parents, youth, and kids — learning the Bhagavad-gita chapter by chapter under the shelter of Sri Sri Radha Madan Mohan.",
+};
+
 export default function About() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">

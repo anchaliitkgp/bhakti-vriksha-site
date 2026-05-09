@@ -1,4 +1,11 @@
 import { speakers } from "@/data/schedule";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Speakers · Bhakti Vriksha Radha Madan Mohan",
+  description:
+    "Meet our teachers and speakers — HG Mahaprema Krishna Das, HG Vrajeshwari Vinita DD, and a growing sanga of sincere devotees.",
+};
 
 const levelColor: Record<string, string> = {
   L1: "bg-krishna-100 border-krishna-300 text-krishna-800",

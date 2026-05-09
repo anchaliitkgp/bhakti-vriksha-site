@@ -1,4 +1,11 @@
 import { schedule } from "@/data/schedule";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Curriculum · Bhakti Vriksha Radha Madan Mohan",
+  description:
+    "The full 32-week curriculum — Bhagavad-gita chapter by chapter, plus practical sessions from HG Radheshyam Prabhu. Starts Sunday 31 May 2026.",
+};
 
 export default function Curriculum() {
   return (

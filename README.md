@@ -1,8 +1,12 @@
 # Bhakti Vriksha Radha Madan Mohan — Website
 
-Next.js 14 site for the Sunday program. Static export ready; deploys to AWS Amplify Hosting.
+Next.js 14 site for the Sunday Bhakti Vriksha program. Public marketing pages today; member portal (Google login + self-attendance) and organiser tools in progress.
 
-## Local development
+Deployed on Vercel. Source of truth is this GitHub repo.
+
+---
+
+## Quick start (local development)
 
 ```bash
 npm install
@@ -10,53 +14,78 @@ npm run dev
 # open http://localhost:3000
 ```
 
-## Edit content
+Requires Node 18+. Build verification:
 
-- **32-week schedule:** `data/schedule.ts`
+```bash
+npm run build
+```
+
+## Edit content (no code required for the common cases)
+
+- **32-week schedule:** `data/schedule.ts` (the `schedule` export)
 - **Speaker roster:** same file, `speakers` export
 - **Home page copy:** `app/page.tsx`
 - **About / teacher bios:** `app/about/page.tsx`
 - **Resource links:** `app/resources/page.tsx`
-- **Contact / email / WhatsApp:** `app/contact/page.tsx`
-- **Registration form:** `app/register/page.tsx` — replace the iframe `src` with your Google Form embed URL
+- **Contact, venue, emails, WhatsApp:** `app/contact/page.tsx`
+- **Registration copy:** `app/register/page.tsx` (swap the "contact to register" block for a Google Form iframe when the form URL is available)
 
-## Deploy to AWS Amplify (summary)
+After editing, commit and push to `main`; Vercel redeploys automatically.
 
-1. Push this folder to a Git repo (GitHub, GitLab, or Bitbucket).
-2. AWS Console → Amplify → "Host web app" → connect the repo.
-3. Amplify auto-detects Next.js. Accept defaults.
-4. Amplify builds and deploys. You get a `*.amplifyapp.com` URL.
-5. To add a custom domain: Amplify → Domain management → Add domain.
+## Environment variables
 
-### Amplify build settings (already auto-detected, for reference)
+When Phase 2 (auth + database) is enabled, copy `.env.local.example` to `.env.local` and fill in:
 
-```yaml
-version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: .next
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-      - .next/cache/**/*
+- `NEXTAUTH_URL` — locally `http://localhost:3000`, in production your Vercel URL
+- `NEXTAUTH_SECRET` — generate with `openssl rand -base64 32`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — from Google Cloud OAuth Console
+- `NEXT_PUBLIC_SUPABASE_URL` — your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (server-only)
+
+On Vercel, add these under *Project Settings → Environment Variables*.
+
+## Deploy to Vercel
+
+1. Push this repo to GitHub (done: `anchaliitkgp/bhakti-vriksha-site`)
+2. Sign in at [vercel.com](https://vercel.com) with GitHub
+3. *Add New → Project →* import the repo
+4. Vercel auto-detects Next.js; accept the defaults
+5. Add environment variables (see above) when Phase 2 is ready
+6. Deploy
+
+Every push to `main` redeploys automatically. Pull requests get preview deploys.
+
+## Project structure
+
+```
+app/
+  page.tsx                  home
+  about/                    about the program
+  curriculum/               32-week schedule (reads data/schedule.ts)
+  speakers/                 L1–L4 speaker roster (reads data/schedule.ts)
+  resources/                curated external links
+  gallery/                  placeholder grid (real photos later)
+  register/                 registration (contact-based until form URL)
+  contact/                  coordinator + venue + WhatsApp
+  layout.tsx                shared layout (Navbar + Footer)
+  opengraph-image.tsx       auto-generated OG image for link previews
+  sitemap.ts                generated /sitemap.xml
+  robots.ts                 generated /robots.txt
+  not-found.tsx             branded 404
+components/
+  Navbar.tsx                sticky top nav with mobile hamburger
+  Footer.tsx                purple footer
+data/
+  schedule.ts               Session + Speaker typed data (edit here)
+.kiro/
+  specs/bhakti-vriksha-website/   requirements, design, tasks
+  steering/                       personal-context + project-preferences
 ```
 
-## Next phase (full-stack additions)
+## Phases
 
-Once the static site is live, we layer on:
+- **Phase 1 — Public site** (live today). Eight public pages, no login.
+- **Phase 2 — Members & Organisers.** Google OAuth (NextAuth), Supabase Postgres, member dashboard, self-attendance (day-of only), organiser curriculum editing.
+- **Phase 3 — Rich member experience.** Role management UI, recordings, sadhana tracker, speaker self-nomination, email digest.
 
-- **Cognito** — family login
-- **DynamoDB + AppSync** — member profiles, sadhana tracker, nomination workflow
-- **S3 (private)** — session recordings
-- **Lambda + API Gateway** — email notifications, weekly digests
-
-All of these integrate natively with Amplify.
+See `.kiro/specs/bhakti-vriksha-website/requirements.md` for the full spec.

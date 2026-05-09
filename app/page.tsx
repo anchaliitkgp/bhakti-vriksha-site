@@ -1,10 +1,17 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { schedule } from "@/data/schedule";
+
+export const metadata: Metadata = {
+  title: "Bhakti Vriksha Radha Madan Mohan · Sunday Family Sanga",
+  description:
+    "A 32-week journey through the Bhagavad-gita for families — every Sunday at Kalkere, Bengaluru. Kirtan, class, games, and prasadam for couples, youth, and kids.",
+};
 
 function nextSunday() {
   const today = new Date();
   const upcoming = schedule.find((s) => new Date(s.date) >= today);
-  return upcoming ?? schedule[0];
+  return upcoming ?? schedule.at(-1) ?? schedule[0];
 }
 
 export default function Home() {
