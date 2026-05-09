@@ -4,6 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
 import AttendanceButton from "@/components/AttendanceButton";
+import FamilyAttendanceChecklist, {
+  type FamilyMemberSummary,
+} from "@/components/FamilyAttendanceChecklist";
 import RegisterFamilyBanner from "@/components/RegisterFamilyBanner";
 import { resolveEffectiveRole, isRoleOverridden, type Role } from "@/lib/auth/roles";
 import { effectiveTodayIST, isDateOverridden } from "@/lib/auth/dev-overrides";
@@ -127,8 +130,8 @@ export default async function MemberDashboard({
   const memberId = memberRow?.id as string | undefined;
 
   // 1b. Is the signed-in user the Primary of an Approved family?
-  //     If yes, we render the "and Family" greeting + the family-scope
-  //     attendance button instead of the individual one.
+  //     Also load the full member roster for the per-member attendance
+  //     checklist shown below.
   const { data: myFamily } = await supabase
     .from("families")
     .select("id, status")
@@ -139,18 +142,51 @@ export default async function MemberDashboard({
   const isApprovedPrimary = isPrimary && myFamily?.status === "Approved";
   let familyMemberCount = 1;
   let primaryDisplayName: string | null = null;
+  let familyRosterRaw: Array<{
+    id: string;
+    kind: string;
+    given_name: string;
+    initiated: boolean;
+    initiated_name: string | null;
+    relationship: string;
+    age: number;
+  }> = [];
   if (isPrimary && myFamily?.id) {
     const { data: fmembers } = await supabase
       .from("family_members")
-      .select("kind, given_name, initiated, initiated_name")
+      .select(
+        "id, kind, given_name, initiated, initiated_name, relationship, age"
+      )
       .eq("family_id", myFamily.id);
-    familyMemberCount = (fmembers ?? []).length;
-    const primary = (fmembers ?? []).find((m: any) => m.kind === "Primary");
+    familyRosterRaw = (fmembers as any) ?? [];
+    familyMemberCount = familyRosterRaw.length;
+    const primary = familyRosterRaw.find((m) => m.kind === "Primary");
     if (primary) {
       primaryDisplayName =
         primary.initiated && primary.initiated_name
           ? String(primary.initiated_name)
           : String(primary.given_name);
+    }
+  }
+
+  // 1c. Is the signed-in user a Secondary with their own Gmail (matches a
+  //     family_members.email row on an Approved family)? If so, the dashboard
+  //     offers them a self-only mark — they only see themselves, not the
+  //     whole roster.
+  let selfFamilyMemberId: string | null = null;
+  let selfFamilyId: string | null = null;
+  if (!isPrimary) {
+    const { data: selfFm } = await supabase
+      .from("family_members")
+      .select("id, family_id, families!inner(status)")
+      .eq("email", email)
+      .maybeSingle();
+    const fm = selfFm as
+      | { id: string; family_id: string; families: { status: string } }
+      | null;
+    if (fm && fm.families?.status === "Approved") {
+      selfFamilyMemberId = fm.id;
+      selfFamilyId = fm.family_id;
     }
   }
 
@@ -171,39 +207,88 @@ export default async function MemberDashboard({
     .limit(4);
   const upcoming = (upcomingRaw ?? []) as SessionRow[];
 
-  // 4. Attendance history for this member (all rows — we need count, and the
-  // last 5 attended weeks). For family-scope primaries we union in the
-  // family_attendance rows so the dashboard shows the whole picture.
+  // 4. Attendance history for this member. Across all three sources:
+  //    - family_member_attendance (granular per-member, new)
+  //    - attendance (legacy self)
+  //    - family_attendance (legacy coarse family-wide)
   let attendanceCount = 0;
   let recentAttendance: Array<{ session_week: number; marked_at: string }> = [];
   let alreadyMarkedToday = false;
 
-  if (memberId) {
-    const { data: attendanceRows } = await supabase
-      .from("attendance")
-      .select("session_week, marked_at")
-      .eq("member_id", memberId)
-      .order("session_week", { ascending: false });
+  // Roster + already-marked map for today, used by the checklist UI (primary only)
+  const rosterWeekMarked = new Map<string, boolean>(); // family_member_id → already?
+  if (todaySession && (isApprovedPrimary || selfFamilyMemberId)) {
+    const rosterIds = isApprovedPrimary
+      ? familyRosterRaw.map((m) => m.id)
+      : selfFamilyMemberId
+      ? [selfFamilyMemberId]
+      : [];
+    if (rosterIds.length > 0) {
+      const { data: marks } = await supabase
+        .from("family_member_attendance")
+        .select("family_member_id")
+        .in("family_member_id", rosterIds)
+        .eq("session_week", todaySession.week);
+      for (const r of (marks as any) ?? []) {
+        rosterWeekMarked.set(r.family_member_id, true);
+      }
+    }
+  }
 
-    const selfRows =
-      (attendanceRows as Array<{
-        session_week: number;
-        marked_at: string;
-      }> | null) ?? [];
+  if (memberId || selfFamilyMemberId || isApprovedPrimary) {
+    const selfRows: Array<{ session_week: number; marked_at: string }> = [];
+    const coarseFamilyRows: Array<{
+      session_week: number;
+      marked_at: string;
+    }> = [];
+    const memberAttendanceRows: Array<{
+      session_week: number;
+      marked_at: string;
+    }> = [];
 
-    let familyRows: Array<{ session_week: number; marked_at: string }> = [];
+    if (memberId) {
+      const { data: attendanceRows } = await supabase
+        .from("attendance")
+        .select("session_week, marked_at")
+        .eq("member_id", memberId)
+        .order("session_week", { ascending: false });
+      selfRows.push(...((attendanceRows as any) ?? []));
+    }
+
     if (isApprovedPrimary && myFamily?.id) {
       const { data: famRows } = await supabase
         .from("family_attendance")
         .select("session_week, marked_at")
         .eq("family_id", myFamily.id)
         .order("session_week", { ascending: false });
-      familyRows = (famRows as typeof familyRows | null) ?? [];
+      coarseFamilyRows.push(...((famRows as any) ?? []));
+    }
+
+    // Per-member attendance for "what have I attended"
+    if (selfFamilyMemberId) {
+      const { data: fmaRows } = await supabase
+        .from("family_member_attendance")
+        .select("session_week, marked_at")
+        .eq("family_member_id", selfFamilyMemberId)
+        .order("session_week", { ascending: false });
+      memberAttendanceRows.push(...((fmaRows as any) ?? []));
+    } else if (isApprovedPrimary && familyRosterRaw.length > 0) {
+      // For the primary, "attendance count" represents the primary's own
+      // attendance (not family-wide) — find their family_member_id first.
+      const primaryFm = familyRosterRaw.find((m) => m.kind === "Primary");
+      if (primaryFm) {
+        const { data: fmaRows } = await supabase
+          .from("family_member_attendance")
+          .select("session_week, marked_at")
+          .eq("family_member_id", primaryFm.id)
+          .order("session_week", { ascending: false });
+        memberAttendanceRows.push(...((fmaRows as any) ?? []));
+      }
     }
 
     // Merge by week, keeping earliest marked_at.
     const merged = new Map<number, string>();
-    for (const r of [...selfRows, ...familyRows]) {
+    for (const r of [...memberAttendanceRows, ...selfRows, ...coarseFamilyRows]) {
       const prev = merged.get(r.session_week);
       if (!prev || r.marked_at < prev) merged.set(r.session_week, r.marked_at);
     }
@@ -346,12 +431,60 @@ export default async function MemberDashboard({
                 Suggested speaker: {todaySession.suggested_speaker}
               </div>
             )}
-            <AttendanceButton
-              week={todaySession.week}
-              sessionDate={todaySession.date}
-              alreadyMarked={alreadyMarkedToday}
-              todayOverride={dateOverridden ? today : undefined}
-            />
+            {(() => {
+              const checklistMembers: FamilyMemberSummary[] = isApprovedPrimary
+                ? familyRosterRaw.map((m) => ({
+                    id: m.id,
+                    displayName:
+                      m.initiated && m.initiated_name
+                        ? String(m.initiated_name)
+                        : String(m.given_name),
+                    relationshipLabel:
+                      m.kind === "Primary" ? "Primary" : m.relationship,
+                    age: m.age ?? null,
+                    alreadyMarked: rosterWeekMarked.get(m.id) === true,
+                  }))
+                : selfFamilyMemberId
+                ? familyRosterRaw
+                    .filter((m) => m.id === selfFamilyMemberId)
+                    .map((m) => ({
+                      id: m.id,
+                      displayName:
+                        m.initiated && m.initiated_name
+                          ? String(m.initiated_name)
+                          : String(m.given_name),
+                      relationshipLabel: m.relationship,
+                      age: m.age ?? null,
+                      alreadyMarked: rosterWeekMarked.get(m.id) === true,
+                    }))
+                : [];
+
+              // Primaries see the full roster; Secondaries-with-own-Gmail
+              // see just themselves. Both land in the same checklist UI
+              // for a consistent UX.
+              if (checklistMembers.length > 0) {
+                return (
+                  <FamilyAttendanceChecklist
+                    week={todaySession.week}
+                    sessionDate={todaySession.date}
+                    members={checklistMembers}
+                    todayOverride={dateOverridden ? today : undefined}
+                  />
+                );
+              }
+
+              // Non-family signed-in users (e.g. code-allowlisted Organisers
+              // who haven't registered a family yet) keep the original
+              // single self-button path.
+              return (
+                <AttendanceButton
+                  week={todaySession.week}
+                  sessionDate={todaySession.date}
+                  alreadyMarked={alreadyMarkedToday}
+                  todayOverride={dateOverridden ? today : undefined}
+                />
+              );
+            })()}
           </div>
         ) : (
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-gray-700">
