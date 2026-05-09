@@ -89,6 +89,36 @@ export interface FamilyMemberBlockProps {
   sharedAnniversary?: SharedAnniversaryInfo;
 }
 
+const GENDER_BY_RELATIONSHIP: Partial<
+  Record<MemberFormState["relationship"], MemberFormState["gender"]>
+> = {
+  Son: "Male",
+  Father: "Male",
+  Brother: "Male",
+  Daughter: "Female",
+  Mother: "Female",
+  Sister: "Female",
+};
+
+// Deterministic marital-status suggestion from relationship. Only applied
+// when the user hasn't already picked a value — never silently overrides.
+// The age < 18 rule ALWAYS wins (forced to Single regardless of what this
+// map says).
+//   - Spouse / Mother / Father → Married (implied by the pair relationship)
+//   - Son / Daughter / Brother / Sister → Single (overridable)
+//   - Other / Self → no suggestion
+const MARITAL_BY_RELATIONSHIP: Partial<
+  Record<MemberFormState["relationship"], MemberFormState["marital_status"]>
+> = {
+  Spouse: "Married",
+  Mother: "Married",
+  Father: "Married",
+  Son: "Single",
+  Daughter: "Single",
+  Brother: "Single",
+  Sister: "Single",
+};
+
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10);
 
 export default function FamilyMemberBlock({
@@ -145,6 +175,24 @@ export default function FamilyMemberBlock({
       initiatedInputRef.current.focus();
     }
   }, [value.initiated]);
+
+  // Relationship → auto-populate gender + marital_status for secondaries.
+  // Only fires when the target field is currently empty, so it never silently
+  // overrides an explicit user choice. Primary's relationship is locked to
+  // 'Self' so this effect is a no-op for the primary.
+  useEffect(() => {
+    if (kind !== "secondary") return;
+    const suggestedGender = GENDER_BY_RELATIONSHIP[value.relationship];
+    const suggestedMarital = MARITAL_BY_RELATIONSHIP[value.relationship];
+
+    const patch: Partial<MemberFormState> = {};
+    if (suggestedGender && value.gender === "") patch.gender = suggestedGender;
+    if (suggestedMarital && value.marital_status === "")
+      patch.marital_status = suggestedMarital;
+
+    if (Object.keys(patch).length > 0) onChange({ ...value, ...patch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.relationship, kind]);
 
   const relOther = value.relationship === "Other";
   const isMarried = value.marital_status === "Married";
