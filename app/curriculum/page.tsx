@@ -1,5 +1,9 @@
-import { schedule } from "@/data/schedule";
 import type { Metadata } from "next";
+import { getAllSessions } from "@/lib/sessions";
+
+// Revalidate at most once per minute. Pages stay fast (edge-cached HTML);
+// Organiser edits in Supabase (future) show up within 60s of saving.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Curriculum · Bhakti Vriksha Radha Madan Mohan",
@@ -7,7 +11,9 @@ export const metadata: Metadata = {
     "The full 32-week curriculum — Bhagavad-gita chapter by chapter, plus practical sessions from HG Radheshyam Prabhu. Starts Sunday 31 May 2026.",
 };
 
-export default function Curriculum() {
+export default async function Curriculum() {
+  const schedule = await getAllSessions();
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       <h1 className="font-serif text-4xl text-krishna-800">32-Week Curriculum</h1>

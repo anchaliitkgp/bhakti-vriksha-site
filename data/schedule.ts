@@ -1,3 +1,17 @@
+// ─── SEED DATA — not the runtime source of truth ─────────────────────────
+// Public pages (/curriculum, /) read from the Supabase `sessions` table via
+// lib/sessions.ts. This file seeds that table via `npm run seed:sessions`
+// and is the fallback when Supabase is unreachable.
+//
+// To change the schedule permanently:
+//   1. Edit this file
+//   2. Commit + push
+//   3. Run: npm run seed:sessions                (updates dev DB)
+//   4. Run: npm run seed:sessions:prod           (updates prod DB; types YES)
+//
+// Once the Organiser curriculum editor ships (Phase 2), Organisers will edit
+// the DB directly via the web UI, and this file becomes historical seed only.
+
 export type SessionCategory = "Gita / Core" | "Practical (HG Radheshyam Prabhu)";
 
 export interface Session {

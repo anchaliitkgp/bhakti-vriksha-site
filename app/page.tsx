@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { schedule } from "@/data/schedule";
+import { getNextSession } from "@/lib/sessions";
+
+// Revalidate at most once per minute. Home stays fast (edge-cached HTML);
+// schedule changes made via Supabase show up within 60s of saving.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Bhakti Vriksha Radha Madan Mohan · Sunday Family Sanga",
@@ -8,14 +12,8 @@ export const metadata: Metadata = {
     "A 32-week journey through the Bhagavad-gita for families — every Sunday at Kalkere, Bengaluru. Kirtan, class, games, and prasadam for couples, youth, and kids.",
 };
 
-function nextSunday() {
-  const today = new Date();
-  const upcoming = schedule.find((s) => new Date(s.date) >= today);
-  return upcoming ?? schedule.at(-1) ?? schedule[0];
-}
-
-export default function Home() {
-  const next = nextSunday();
+export default async function Home() {
+  const next = await getNextSession();
   return (
     <div>
       {/* Hero */}
