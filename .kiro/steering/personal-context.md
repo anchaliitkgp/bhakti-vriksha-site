@@ -45,8 +45,8 @@ This workspace is **not** for Amazon work. Do not pull in any Amazon-related con
 
 - **HG Mahaprema Krishna Das** — senior teacher
 - **HG Vrajeshwari Vinita DD** — program & youth lead (his wife)
-- **Shekhar Prabhuji, Anu Mataji** — L2 devotees
-- **Divya Nayak, Srirekha Mataji, Ria Mataji** — L3 devotees
+- **Shekhar Verma, Anu Nehra** — L2 devotees
+- **Divya Nayak, Srirekha Pillai, Ria Pillai** — L3 devotees
 - **Myself (Anchal)** — program coordinator
 
 ## Default communication preferences (project-specific)
