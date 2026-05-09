@@ -48,37 +48,110 @@ export default async function Home() {
       </section>
 
       {/* Darshan — Sri Sri Radha Madan Mohan */}
-      <section className="bg-gradient-to-b from-saffron-50 via-white to-saffron-50 border-b border-saffron-100">
-        <div className="max-w-5xl mx-auto px-4 py-12 md:py-16">
-          <div className="text-center mb-6 md:mb-8">
-            <div className="text-xs md:text-sm uppercase tracking-[0.25em] text-saffron-700">
-              Darshan
-            </div>
-            <div className="om-divider mt-2 w-24 mx-auto" />
-          </div>
-          <figure className="mx-auto max-w-3xl">
-            <div className="relative rounded-2xl overflow-hidden border-4 border-saffron-200 shadow-xl ring-1 ring-krishna-200/40 bg-krishna-900">
-              {/* Place the photo at /public/radha-madan-mohan.jpg */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-saffron-50 via-white to-saffron-50 border-b border-saffron-100">
+        {/* Soft radial glow behind the altar */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(250,176,44,0.18),_transparent_60%)]"
+        />
+        <div className="relative max-w-5xl mx-auto px-4 py-14 md:py-20">
+          <div className="text-center mb-6 md:mb-10">
+            {/* ISKCON logo on desktop replaces the om divider */}
+            <div className="hidden md:flex items-center justify-center">
               <img
-                src="/radha-madan-mohan.jpg"
-                alt="Sri Sri Radha Madan Mohan — the worshipable Deities of our sanga, beautifully dressed and garlanded"
-                loading="eager"
-                className="w-full h-auto block"
+                src="/iskcon-logo.png"
+                alt="ISKCON logo"
+                width={72}
+                height={72}
+                className="opacity-95 drop-shadow-[0_2px_6px_rgba(139,69,19,0.35)]"
               />
             </div>
-            <figcaption className="mt-5 text-center">
+            <div className="mt-3 text-xs md:text-sm uppercase tracking-[0.3em] text-saffron-700">
+              Darshan
+            </div>
+            {/* Keep om-divider on mobile for balance */}
+            <div className="om-divider mt-3 w-24 mx-auto md:hidden" />
+          </div>
+
+          <figure className="mx-auto max-w-3xl">
+            {/* Ornate layered frame: gold gradient → inner navy bevel → photo */}
+            <div className="relative p-[10px] md:p-[14px] rounded-[28px] bg-gradient-to-br from-[#f7d07a] via-[#c9912f] to-[#8b5e15] shadow-[0_20px_60px_-10px_rgba(139,69,19,0.5)]">
+              {/* Decorative corner flourishes (desktop) */}
+              <span aria-hidden className="hidden md:block absolute -top-2 -left-2 text-3xl text-saffron-600">✦</span>
+              <span aria-hidden className="hidden md:block absolute -top-2 -right-2 text-3xl text-saffron-600">✦</span>
+              <span aria-hidden className="hidden md:block absolute -bottom-2 -left-2 text-3xl text-saffron-600">✦</span>
+              <span aria-hidden className="hidden md:block absolute -bottom-2 -right-2 text-3xl text-saffron-600">✦</span>
+
+              <div className="relative rounded-[20px] p-1 bg-gradient-to-b from-krishna-900 to-krishna-800">
+                <div className="relative rounded-[16px] overflow-hidden ring-1 ring-saffron-300/60">
+                  <img
+                    src="/radha-madan-mohan.jpg"
+                    alt="Sri Sri Radha Madan Mohan — the worshipable Deities of our sanga, beautifully dressed and garlanded"
+                    loading="eager"
+                    className="w-full h-auto block"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <figcaption className="mt-6 text-center">
               <div className="font-serif text-2xl md:text-3xl text-krishna-800">
                 Sri Sri Radha Madan Mohan
               </div>
               <div className="mt-1 text-sm md:text-base text-saffron-700 uppercase tracking-widest">
                 Our beloved Lordships
               </div>
-              <div className="mt-3 text-gray-600 text-sm italic max-w-xl mx-auto">
+              <div className="mt-3 text-gray-600 text-sm md:text-base italic max-w-xl mx-auto">
                 All glories to the eternal Divine Couple, the presiding Deities
                 of our sanga.
               </div>
             </figcaption>
           </figure>
+        </div>
+      </section>
+
+      {/* Our Lineage — Srila Prabhupada, HH Jayapataka Swami, HG Mahaprema Prabhu */}
+      <section className="bg-white border-b border-saffron-100">
+        <div className="max-w-6xl mx-auto px-4 py-14 md:py-20">
+          <div className="text-center mb-10">
+            <div className="text-xs md:text-sm uppercase tracking-[0.3em] text-saffron-700">
+              Our Lineage
+            </div>
+            <h2 className="mt-2 font-serif text-3xl md:text-4xl text-krishna-800">
+              Rooted in parampara
+            </h2>
+            <p className="mt-3 max-w-2xl mx-auto text-gray-700 leading-relaxed">
+              Our sanga is inspired by the teachings of Srila Prabhupada and
+              the practical example of HH Jayapataka Swami Maharaja — and
+              shaped day-to-day under the loving guidance of HG Mahaprema
+              Krishna Das.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:gap-8 md:grid-cols-3">
+            <LineageCard
+              img="/srila-prabhupada.jpg"
+              name="Srila Prabhupada"
+              honorific="HDG A.C. Bhaktivedanta Swami"
+              role="Founder-Acharya, ISKCON"
+              body="Our inspiration and siksha-guru. The Bhagavad-gita As It Is and Srimad-Bhagavatam — with their illuminating purports — are the foundation of every session."
+            />
+            <LineageCard
+              img="/jayapataka-swami.jpg"
+              name="HH Jayapataka Swami Maharaja"
+              honorific="Disciple of Srila Prabhupada"
+              role="Our Gurudeva"
+              body="Our guiding light in preaching and family-centered Bhakti Vriksha programs. His dedication to Lord Chaitanya's mission shapes how we approach sanga and seva."
+            />
+            <LineageCard
+              img="/mahaprema-prabhu.jpg"
+              name="HG Mahaprema Krishna Das"
+              honorific="Our Teacher"
+              role="Backbone of the sanga"
+              body="The heart of our Bhakti Vriksha program. Week after week, he teaches the Gita, shares his realizations, and lovingly shepherds each family on their journey home."
+              featured
+            />
+          </div>
         </div>
       </section>
 
@@ -203,5 +276,59 @@ function Pillar({ num, title, body }: { num: string; title: string; body: string
         <p className="mt-1 text-gray-700 text-sm leading-relaxed">{body}</p>
       </div>
     </div>
+  );
+}
+
+function LineageCard({
+  img,
+  name,
+  honorific,
+  role,
+  body,
+  featured = false,
+}: {
+  img: string;
+  name: string;
+  honorific: string;
+  role: string;
+  body: string;
+  featured?: boolean;
+}) {
+  // Featured card gets a gold border, subtle scale, and saffron glow.
+  const frameClass = featured
+    ? "p-[4px] bg-gradient-to-br from-[#f7d07a] via-[#c9912f] to-[#8b5e15] shadow-[0_14px_40px_-10px_rgba(139,69,19,0.45)] md:scale-[1.02]"
+    : "p-[2px] bg-gradient-to-br from-saffron-200 via-saffron-300 to-saffron-400 shadow-md";
+  return (
+    <figure
+      className={`relative rounded-2xl ${frameClass} transition hover:shadow-lg`}
+    >
+      <div className="rounded-[14px] bg-white overflow-hidden h-full flex flex-col">
+        <div className="relative aspect-[4/5] bg-krishna-50 overflow-hidden">
+          <img
+            src={img}
+            alt={name}
+            loading="lazy"
+            className="w-full h-full object-cover object-top"
+          />
+          {featured && (
+            <span className="absolute top-3 left-3 bg-saffron-500 text-krishna-900 text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full shadow">
+              Our Teacher
+            </span>
+          )}
+        </div>
+        <figcaption className="p-5 flex-1 flex flex-col">
+          <div className="text-[10px] md:text-xs uppercase tracking-[0.2em] text-saffron-700">
+            {role}
+          </div>
+          <h3 className="mt-1 font-serif text-xl md:text-2xl text-krishna-800 leading-snug">
+            {name}
+          </h3>
+          <div className="text-xs md:text-sm text-gray-500 italic">
+            {honorific}
+          </div>
+          <p className="mt-3 text-sm text-gray-700 leading-relaxed">{body}</p>
+        </figcaption>
+      </div>
+    </figure>
   );
 }
