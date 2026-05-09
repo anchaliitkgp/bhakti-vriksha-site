@@ -6,6 +6,8 @@ type Props = {
   week: number;
   sessionDate: string; // ISO YYYY-MM-DD
   alreadyMarked: boolean;
+  /** "self" (default) — write to `attendance`; "family" — write to `family_attendance` via the same endpoint. */
+  scope?: "self" | "family";
   /** Dev-only: simulate today's date for UI testing. Server still validates. */
   todayOverride?: string;
 };
@@ -19,8 +21,6 @@ function todayInIST(): string {
 }
 
 function formatPrettyDate(iso: string): string {
-  // iso is YYYY-MM-DD; constructing via Date directly treats it as UTC
-  // midnight which, when rendered in IST, can shift by a day. Split manually.
   const [y, m, d] = iso.split("-").map((n) => parseInt(n, 10));
   const local = new Date(y, m - 1, d);
   return local.toLocaleDateString("en-IN", {
@@ -35,6 +35,7 @@ export default function AttendanceButton({
   week,
   sessionDate,
   alreadyMarked,
+  scope = "self",
   todayOverride,
 }: Props) {
   const [confirmed, setConfirmed] = useState(alreadyMarked);
@@ -43,8 +44,8 @@ export default function AttendanceButton({
 
   const today = todayOverride ?? todayInIST();
   const isToday = today === sessionDate;
+  const isFamily = scope === "family";
 
-  // Already marked — highest priority state.
   if (confirmed) {
     return (
       <div
@@ -53,12 +54,13 @@ export default function AttendanceButton({
         className="mt-4 inline-flex items-center gap-2 bg-green-50 border border-green-300 text-green-800 font-medium rounded-md px-4 py-3"
       >
         <span aria-hidden>✅</span>
-        Attendance confirmed for Week {week}
+        {isFamily
+          ? `Family attendance confirmed for Week ${week}`
+          : `Attendance confirmed for Week ${week}`}
       </div>
     );
   }
 
-  // Not the session day — disabled.
   if (!isToday) {
     return (
       <div className="mt-4 inline-flex items-center gap-2 bg-gray-100 border border-gray-300 text-gray-600 rounded-md px-4 py-3 text-sm">
@@ -75,9 +77,11 @@ export default function AttendanceButton({
       const res = await fetch("/api/attendance/mark", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          todayOverride ? { week, today: todayOverride } : { week },
-        ),
+        body: JSON.stringify({
+          week,
+          scope,
+          ...(todayOverride ? { today: todayOverride } : {}),
+        }),
       });
       if (!res.ok) {
         let msg = `Request failed (${res.status})`;
@@ -86,7 +90,7 @@ export default function AttendanceButton({
           if (body?.error) msg = body.error;
           else if (body?.message) msg = body.message;
         } catch {
-          // ignore json parse failure
+          // ignore
         }
         throw new Error(msg);
       }
@@ -108,7 +112,11 @@ export default function AttendanceButton({
         disabled={submitting}
         className="inline-flex items-center gap-2 bg-saffron-500 text-krishna-900 font-semibold px-6 py-3 rounded-md hover:bg-saffron-400 transition disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-krishna-700"
       >
-        {submitting ? "Marking…" : `Mark attendance for Week ${week}`}
+        {submitting
+          ? "Marking…"
+          : isFamily
+          ? `Mark family attendance for Week ${week}`
+          : `Mark attendance for Week ${week}`}
       </button>
 
       {error && (

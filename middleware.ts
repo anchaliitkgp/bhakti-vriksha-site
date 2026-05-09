@@ -1,14 +1,14 @@
 import { withAuth } from "next-auth/middleware";
 
-// Route guards for member and admin surfaces.
+// Route guards for member, admin, and family API surfaces.
 //
 // Behaviour on failure:
-// - Unauthenticated requests are redirected to the signIn page configured below
-//   (NextAuth default). That matches our UX.
-// - Authenticated-but-wrong-role requests (e.g., a member hitting /admin) also
-//   fall through to the signIn redirect today. That's acceptable for the first
-//   ship; a nicer /403 rewrite is a follow-up (Group 4+ future work). See the
-//   `authorized` callback below for where role checks happen.
+// - Unauthenticated requests are redirected to the signIn page.
+// - Authenticated-but-wrong-role requests (e.g. a member hitting /admin) also
+//   fall through to the signIn redirect. A nicer /403 rewrite is a follow-up.
+//
+// /register and POST /api/family/register are intentionally NOT guarded —
+// anyone can submit a family registration from the public site.
 export default withAuth({
   pages: {
     signIn: "/signin",
@@ -17,14 +17,23 @@ export default withAuth({
     authorized({ token, req }) {
       const pathname = req.nextUrl.pathname;
 
-      // Admin surfaces require organiser or manager role.
-      if (pathname.startsWith("/admin")) {
+      // Admin surfaces (including /admin/registrations and family lifecycle
+      // RPC endpoints) require organiser or manager role.
+      if (
+        pathname.startsWith("/admin") ||
+        /^\/api\/family\/[^/]+\/(approve|reject|reopen)$/.test(pathname)
+      ) {
         const role = token?.role;
         return role === "organiser" || role === "manager";
       }
 
-      // Member surfaces and attendance API just require any authenticated
-      // session — any signed-in family can mark their own attendance (US-14).
+      // Family edit endpoint: any signed-in user — the route handler itself
+      // enforces "primary of this family OR organiser/manager" (FR-10.1).
+      if (/^\/api\/family\/[^/]+$/.test(pathname)) {
+        return !!token;
+      }
+
+      // Member surfaces + attendance API: any signed-in session.
       if (
         pathname.startsWith("/member") ||
         pathname.startsWith("/api/attendance")
@@ -32,13 +41,22 @@ export default withAuth({
         return !!token;
       }
 
-      // Anything else handled by this middleware (shouldn't happen given the
-      // matcher below) defaults to authenticated-only.
+      // Default: signed-in.
       return !!token;
     },
   },
 });
 
 export const config = {
-  matcher: ["/member/:path*", "/admin/:path*", "/api/attendance/:path*"],
+  matcher: [
+    "/member/:path*",
+    "/admin/:path*",
+    "/api/attendance/:path*",
+    // Family lifecycle endpoints. NOTE: /api/family/register is public and is
+    // intentionally excluded — the matcher below excludes it.
+    "/api/family/:id((?!register$)[^/]+)",
+    "/api/family/:id((?!register$)[^/]+)/approve",
+    "/api/family/:id((?!register$)[^/]+)/reject",
+    "/api/family/:id((?!register$)[^/]+)/reopen",
+  ],
 };

@@ -125,6 +125,34 @@ export default async function MemberDashboard({
 
   const memberId = memberRow?.id as string | undefined;
 
+  // 1b. Is the signed-in user the Primary of an Approved family?
+  //     If yes, we render the "and Family" greeting + the family-scope
+  //     attendance button instead of the individual one.
+  const { data: myFamily } = await supabase
+    .from("families")
+    .select("id, status")
+    .eq("primary_email", email)
+    .maybeSingle();
+
+  const isPrimary = !!myFamily;
+  const isApprovedPrimary = isPrimary && myFamily?.status === "Approved";
+  let familyMemberCount = 1;
+  let primaryDisplayName: string | null = null;
+  if (isPrimary && myFamily?.id) {
+    const { data: fmembers } = await supabase
+      .from("family_members")
+      .select("kind, given_name, initiated, initiated_name")
+      .eq("family_id", myFamily.id);
+    familyMemberCount = (fmembers ?? []).length;
+    const primary = (fmembers ?? []).find((m: any) => m.kind === "Primary");
+    if (primary) {
+      primaryDisplayName =
+        primary.initiated && primary.initiated_name
+          ? String(primary.initiated_name)
+          : String(primary.given_name);
+    }
+  }
+
   // 2. Today's session (if any).
   const { data: todaySessionRaw } = await supabase
     .from("sessions")
@@ -143,7 +171,8 @@ export default async function MemberDashboard({
   const upcoming = (upcomingRaw ?? []) as SessionRow[];
 
   // 4. Attendance history for this member (all rows — we need count, and the
-  // last 5 attended weeks).
+  // last 5 attended weeks). For family-scope primaries we union in the
+  // family_attendance rows so the dashboard shows the whole picture.
   let attendanceCount = 0;
   let recentAttendance: Array<{ session_week: number; marked_at: string }> = [];
   let alreadyMarkedToday = false;
@@ -155,15 +184,36 @@ export default async function MemberDashboard({
       .eq("member_id", memberId)
       .order("session_week", { ascending: false });
 
-    const rows =
+    const selfRows =
       (attendanceRows as Array<{
         session_week: number;
         marked_at: string;
       }> | null) ?? [];
-    attendanceCount = rows.length;
-    recentAttendance = rows.slice(0, 5);
+
+    let familyRows: Array<{ session_week: number; marked_at: string }> = [];
+    if (isApprovedPrimary && myFamily?.id) {
+      const { data: famRows } = await supabase
+        .from("family_attendance")
+        .select("session_week, marked_at")
+        .eq("family_id", myFamily.id)
+        .order("session_week", { ascending: false });
+      familyRows = (famRows as typeof familyRows | null) ?? [];
+    }
+
+    // Merge by week, keeping earliest marked_at.
+    const merged = new Map<number, string>();
+    for (const r of [...selfRows, ...familyRows]) {
+      const prev = merged.get(r.session_week);
+      if (!prev || r.marked_at < prev) merged.set(r.session_week, r.marked_at);
+    }
+    const mergedArr = Array.from(merged.entries())
+      .map(([session_week, marked_at]) => ({ session_week, marked_at }))
+      .sort((a, b) => b.session_week - a.session_week);
+
+    attendanceCount = mergedArr.length;
+    recentAttendance = mergedArr.slice(0, 5);
     if (todaySession) {
-      alreadyMarkedToday = rows.some(
+      alreadyMarkedToday = mergedArr.some(
         (r) => r.session_week === todaySession.week
       );
     }
@@ -207,6 +257,13 @@ export default async function MemberDashboard({
 
   const name = firstName(session.user.name, session.user.email);
 
+  // Build the greeting line per FR-09.
+  const greetingName =
+    primaryDisplayName && primaryDisplayName.length > 0
+      ? primaryDisplayName.split(/\s+/)[0]
+      : name;
+  const showAndFamily = isApprovedPrimary && familyMemberCount > 1;
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 md:py-12">
       {/* 1. Welcome strip */}
@@ -217,7 +274,8 @@ export default async function MemberDashboard({
               Welcome
             </div>
             <h1 className="font-serif text-2xl md:text-3xl mt-1">
-              Hare Krishna, {name}!
+              Hare Krishna, {greetingName}
+              {showAndFamily ? " and Family" : ""}!
             </h1>
           </div>
           <span
@@ -398,11 +456,24 @@ export default async function MemberDashboard({
           Quick links
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          {isPrimary && (
+            <>
+              <Link
+                href="/member/family/edit"
+                className="text-krishna-700 underline underline-offset-4 hover:text-krishna-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-500 rounded"
+              >
+                Edit your family
+              </Link>
+              <span className="text-gray-300" aria-hidden>
+                ·
+              </span>
+            </>
+          )}
           <Link
             href="/curriculum"
             className="text-krishna-700 underline underline-offset-4 hover:text-krishna-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-500 rounded"
           >
-            Full curriculum
+            Proposed curriculum
           </Link>
           <span className="text-gray-300" aria-hidden>
             ·

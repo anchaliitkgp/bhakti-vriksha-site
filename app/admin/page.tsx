@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { supabaseServer } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Admin · Bhakti Vriksha Radha Madan Mohan",
@@ -27,9 +30,16 @@ export default async function AdminPage() {
 
   const roleLabel = role === "manager" ? "Website Manager" : "Organiser";
 
+  // Live pending count for the family-registrations card
+  const supabase = supabaseServer();
+  const { count: pendingCount } = await supabase
+    .from("families")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "Pending");
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 md:py-12">
-      {/* Header strip — same visual family as /member */}
+      {/* Header strip */}
       <section className="bg-gradient-to-br from-krishna-700 to-krishna-800 text-white rounded-2xl px-6 py-6 md:px-8 md:py-8 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -37,7 +47,7 @@ export default async function AdminPage() {
               Admin
             </div>
             <h1 className="font-serif text-2xl md:text-3xl mt-1">
-              Admin tools coming soon
+              Organiser &amp; Manager tools
             </h1>
           </div>
           <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-krishna-600 text-white">
@@ -46,21 +56,42 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* Intro */}
+      {/* Live tool — Family registrations */}
       <section className="mt-8">
-        <p className="text-gray-700 max-w-2xl leading-relaxed">
-          This is the Organiser &amp; Manager console. Today it&rsquo;s a
-          placeholder — the tools below are scheduled for the next build weekend.
-          The auth and role gating are already live, so adding each tool is a
-          UI-only step from here.
-        </p>
+        <h2 className="font-serif text-2xl text-krishna-800">Live tools</h2>
+        <div className="om-divider mt-2 mb-4" />
+        <Link
+          href="/admin/registrations"
+          className="block bg-white border border-saffron-200 rounded-2xl p-5 shadow-sm hover:bg-saffron-50/50 transition"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-2xl" aria-hidden>
+                📝
+              </div>
+              <div className="font-serif text-lg text-krishna-800 mt-1">
+                Family registrations
+              </div>
+              <p className="mt-1 text-sm text-gray-700">
+                Approve, reject, and reopen family registrations. Newly
+                approved families are immediately allowlisted.
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-widest text-saffron-700">
+                Pending
+              </div>
+              <div className="font-serif text-3xl text-krishna-800">
+                {pendingCount ?? 0}
+              </div>
+            </div>
+          </div>
+        </Link>
       </section>
 
-      {/* Tools list */}
-      <section className="mt-8">
-        <h2 className="font-serif text-2xl text-krishna-800">
-          What will live here
-        </h2>
+      {/* Coming-next */}
+      <section className="mt-10">
+        <h2 className="font-serif text-2xl text-krishna-800">Coming next</h2>
         <div className="om-divider mt-2 mb-4" />
         <div className="grid sm:grid-cols-2 gap-4">
           <ToolCard
@@ -123,7 +154,7 @@ export default async function AdminPage() {
             href="/curriculum"
             className="text-krishna-700 underline underline-offset-4 hover:text-krishna-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-500 rounded"
           >
-            Full curriculum
+            Proposed curriculum
           </Link>
           <span className="text-gray-300" aria-hidden>
             ·
