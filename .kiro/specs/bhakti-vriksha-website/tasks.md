@@ -56,30 +56,30 @@
   - [x] 11.1 `npm run build` passes cleanly
   - [x] 11.2 `npm run dev` shows all pages with no console errors
 
-- [-] 12. Commit Phase 1 polish and push
-  - [ ] 12.1 Commit with a clear `feat(public): ...` message listing the changes
-  - [ ] 12.2 Push to `origin/main`
+- [x] 12. Commit Phase 1 polish and push
+  - [x] 12.1 Commit with a clear `feat(public): ...` message listing the changes
+  - [x] 12.2 Push to `origin/main`
 
 ---
 
 ## Group 2 — Environment setup (you do these, I guide)
 
-- [ ] 13. Create Supabase project
-  - [ ] 13.1 Sign up at supabase.com (free tier, no card needed)
-  - [ ] 13.2 Create a new project named `bhakti-vriksha`
-  - [ ] 13.3 Note down the project URL and service-role key
-  - [ ] 13.4 Paste both to me so I can continue
+- [x] 13. Create Supabase project
+  - [x] 13.1 Sign up at supabase.com (free tier, no card needed)
+  - [x] 13.2 Create a new project named `bhakti-vriksha`
+  - [x] 13.3 Note down the project URL and service-role key
+  - [x] 13.4 Paste both to me so I can continue
 
-- [ ] 14. Create Google Cloud OAuth credentials
-  - [ ] 14.1 Go to console.cloud.google.com → create a new project `bhakti-vriksha-auth`
-  - [ ] 14.2 Configure OAuth consent screen as "External" in Testing mode, with your personal Gmail as the test user
-  - [ ] 14.3 Create OAuth 2.0 Client ID for a Web application
-  - [ ] 14.4 For today, authorized JavaScript origin: `http://localhost:3000`; after deploy we add the Vercel URL
-  - [ ] 14.5 Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (and Vercel URL's callback after deploy)
-  - [ ] 14.6 Note Client ID and Client Secret
-  - [ ] 14.7 Paste both to me
+- [x] 14. Create Google Cloud OAuth credentials
+  - [x] 14.1 Go to console.cloud.google.com → create a new project `bhakti-vriksha-auth`
+  - [x] 14.2 Configure OAuth consent screen as "External" in Testing mode, with your personal Gmail as the test user
+  - [x] 14.3 Create OAuth 2.0 Client ID for a Web application
+  - [x] 14.4 For today, authorized JavaScript origin: `http://localhost:3000`; after deploy we add the Vercel URL
+  - [x] 14.5 Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (and Vercel URL's callback after deploy)
+  - [x] 14.6 Note Client ID and Client Secret
+  - [x] 14.7 Paste both to me
 
-- [ ] 15. Create Vercel project and link GitHub repo
+- [x] 15. Create Vercel project and link GitHub repo
   - [ ] 15.1 Sign in at vercel.com with GitHub
   - [ ] 15.2 Import `anchaliitkgp/bhakti-vriksha-site`
   - [ ] 15.3 Initial deploy (will succeed even before env vars, as public pages don't depend on them)
@@ -89,108 +89,108 @@
 
 ## Group 3 — Database schema (I do these)
 
-- [ ] 16. Author SQL migrations
-  - [ ] 16.1 `supabase/migrations/001_sessions.sql` — `sessions` table with unique(week) and unique(date)
-  - [ ] 16.2 `supabase/migrations/002_members.sql` — `members` table
-  - [ ] 16.3 `supabase/migrations/003_attendance.sql` — `attendance` table with FKs and unique(member_id, session_week)
-  - [ ] 16.4 `supabase/migrations/004_announcements.sql` — `announcements` table (stub, no UI today)
-  - [ ] 16.5 `supabase/migrations/005_rls.sql` — enable RLS with policies for self-read, organiser-read-all
+- [x] 16. Author SQL migrations
+  - [x] 16.1 `supabase/migrations/001_sessions.sql` — `sessions` table with unique(week) and unique(date)
+  - [x] 16.2 `supabase/migrations/002_members.sql` — `members` table
+  - [x] 16.3 `supabase/migrations/003_attendance.sql` — `attendance` table with FKs and unique(member_id, session_week)
+  - [x] 16.4 `supabase/migrations/004_announcements.sql` — `announcements` table (stub, no UI today)
+  - [x] 16.5 `supabase/migrations/005_rls.sql` — enable RLS with policies for self-read, organiser-read-all
 
-- [ ] 17. Seed script for `sessions`
-  - [ ] 17.1 `supabase/seed/seed-sessions.ts` — reads `data/schedule.ts` and inserts 32 rows on a fresh DB
-  - [ ] 17.2 Add an npm script `seed:sessions` that runs it against the live Supabase using the service-role key from `.env.local`
+- [x] 17. Seed script for `sessions`
+  - [x] 17.1 `supabase/seed/seed-sessions.ts` — reads `data/schedule.ts` and inserts 32 rows on a fresh DB
+  - [x] 17.2 Add an npm script `seed:sessions` that runs it against the live Supabase using the service-role key from `.env.local`
 
-- [ ] 18. Apply migrations and seed to Supabase
-  - [ ] 18.1 Run migrations via Supabase dashboard SQL editor (copy-paste) or CLI (`supabase db push`)
-  - [ ] 18.2 Run the seed script
-  - [ ] 18.3 Verify 32 `sessions` rows via SQL tab
+- [x] 18. Apply migrations and seed to Supabase
+  - [x] 18.1 Run migrations via Supabase dashboard SQL editor (copy-paste) or CLI (`supabase db push`)
+  - [x] 18.2 Run the seed script
+  - [x] 18.3 Verify 32 `sessions` rows via SQL tab
 
 ---
 
 ## Group 4 — Auth implementation
 
-- [ ] 19. Install auth & DB dependencies
-  - [ ] 19.1 `npm install next-auth@4 @auth/core @supabase/supabase-js`
-  - [ ] 19.2 `npm install -D @types/next-auth` (if needed for TS)
+- [x] 19. Install auth & DB dependencies
+  - [x] 19.1 `npm install next-auth@4 @auth/core @supabase/supabase-js`
+  - [x] 19.2 `npm install -D @types/next-auth` (if needed for TS)
 
-- [ ] 20. Create environment variable template
-  - [ ] 20.1 `.env.local.example` with keys: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-  - [ ] 20.2 Add `.env.local` to `.gitignore` (already there, verify)
-  - [ ] 20.3 You populate `.env.local` locally with real values from Groups 2–3
+- [x] 20. Create environment variable template
+  - [x] 20.1 `.env.local.example` with keys: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  - [x] 20.2 Add `.env.local` to `.gitignore` (already there, verify)
+  - [x] 20.3 You populate `.env.local` locally with real values from Groups 2–3
 
-- [ ] 21. Implement role allowlist
-  - [ ] 21.1 `lib/auth/roles.ts` with `type Role` and `roleFor(email)` function
-  - [ ] 21.2 Allowlist entries: `anchaliitkgp@gmail.com` → manager, `mahendra.prajapat@gmail.com` → organiser
-  - [ ] 21.3 TODO comment for Vinita Mataji's email when available
+- [-] 21. Implement role allowlist
+  - [x] 21.1 `lib/auth/roles.ts` with `type Role` and `roleFor(email)` function
+  - [x] 21.2 Allowlist entries: `anchaliitkgp@gmail.com` → manager, `mahendra.prajapat@gmail.com` → organiser
+  - [x] 21.3 TODO comment for Vinita Mataji's email when available
   - [ ] 21.4 Unit test for `roleFor()` (inline, simple) — optional*
 
-- [ ] 22. Implement NextAuth configuration
-  - [ ] 22.1 `lib/auth.ts` exporting `authOptions` with Google provider and JWT strategy
-  - [ ] 22.2 JWT callback: read email, set `token.role = roleFor(email)`
-  - [ ] 22.3 Session callback: expose `session.user.role`
-  - [ ] 22.4 SignIn callback: upsert into `members` table via Supabase service client
-  - [ ] 22.5 TypeScript augment `next-auth` module to add `role` to `Session["user"]`
+- [x] 22. Implement NextAuth configuration
+  - [x] 22.1 `lib/auth.ts` exporting `authOptions` with Google provider and JWT strategy
+  - [x] 22.2 JWT callback: read email, set `token.role = roleFor(email)`
+  - [x] 22.3 Session callback: expose `session.user.role`
+  - [x] 22.4 SignIn callback: upsert into `members` table via Supabase service client
+  - [x] 22.5 TypeScript augment `next-auth` module to add `role` to `Session["user"]`
 
-- [ ] 23. Create NextAuth API route
-  - [ ] 23.1 `app/api/auth/[...nextauth]/route.ts` exports `GET` and `POST` from `NextAuth(authOptions)`
+- [x] 23. Create NextAuth API route
+  - [x] 23.1 `app/api/auth/[...nextauth]/route.ts` exports `GET` and `POST` from `NextAuth(authOptions)`
 
-- [ ] 24. Create Supabase server client
-  - [ ] 24.1 `lib/supabase.ts` exports `supabaseServer()` using `SUPABASE_SERVICE_ROLE_KEY`, never imported by client components
+- [x] 24. Create Supabase server client
+  - [x] 24.1 `lib/supabase.ts` exports `supabaseServer()` using `SUPABASE_SERVICE_ROLE_KEY`, never imported by client components
 
-- [ ] 25. Create `/signin` page
-  - [ ] 25.1 `app/signin/page.tsx` — simple centered card with "Continue with Google" button calling `signIn("google")`
-  - [ ] 25.2 Handle `callbackUrl` query param for post-signin redirect
-  - [ ] 25.3 Link back to home for users who changed their mind
+- [x] 25. Create `/signin` page
+  - [x] 25.1 `app/signin/page.tsx` — simple centered card with "Continue with Google" button calling `signIn("google")`
+  - [x] 25.2 Handle `callbackUrl` query param for post-signin redirect
+  - [x] 25.3 Link back to home for users who changed their mind
 
-- [ ] 26. Add auth-aware nav links
-  - [ ] 26.1 Update `components/Navbar.tsx` to show "Sign in" for guests and "Hi, [first name]" + "Sign out" for signed-in users
-  - [ ] 26.2 Fetch session via `useSession()` (needs `SessionProvider` in `app/layout.tsx`)
-  - [ ] 26.3 Show "Admin" link only for organiser/manager roles
+- [x] 26. Add auth-aware nav links
+  - [x] 26.1 Update `components/Navbar.tsx` to show "Sign in" for guests and "Hi, [first name]" + "Sign out" for signed-in users
+  - [x] 26.2 Fetch session via `useSession()` (needs `SessionProvider` in `app/layout.tsx`)
+  - [x] 26.3 Show "Admin" link only for organiser/manager roles
 
-- [ ] 27. Add `SessionProvider` wrapper
-  - [ ] 27.1 Create `app/providers.tsx` as a client component that wraps children in `<SessionProvider>`
-  - [ ] 27.2 Use it inside `app/layout.tsx`
+- [x] 27. Add `SessionProvider` wrapper
+  - [x] 27.1 Create `app/providers.tsx` as a client component that wraps children in `<SessionProvider>`
+  - [x] 27.2 Use it inside `app/layout.tsx`
 
-- [ ] 28. Implement route-guard middleware
-  - [ ] 28.1 `middleware.ts` at project root using `withAuth` from `next-auth/middleware`
-  - [ ] 28.2 Config matcher: `/member/:path*`, `/admin/:path*`, `/api/attendance/:path*`
-  - [ ] 28.3 `authorized` callback rejects guests for member routes and non-organiser/manager for admin routes
-  - [ ] 28.4 Create `app/403/page.tsx` for forbidden access
+- [x] 28. Implement route-guard middleware
+  - [x] 28.1 `middleware.ts` at project root using `withAuth` from `next-auth/middleware`
+  - [x] 28.2 Config matcher: `/member/:path*`, `/admin/:path*`, `/api/attendance/:path*`
+  - [x] 28.3 `authorized` callback rejects guests for member routes and non-organiser/manager for admin routes
+  - [x] 28.4 Create `app/403/page.tsx` for forbidden access
 
 ---
 
 ## Group 5 — Member dashboard + attendance
 
-- [ ] 29. Member dashboard page
-  - [ ] 29.1 `app/member/page.tsx` — server component reading `getServerSession`
-  - [ ] 29.2 Welcome strip with first name + role badge
-  - [ ] 29.3 Fetch today's session from DB (or TS file fallback) based on IST date
-  - [ ] 29.4 Render attendance block (see task 30)
-  - [ ] 29.5 List "My attendance" — count + last 5 sessions attended
-  - [ ] 29.6 List "Upcoming sessions" — next 4
+- [x] 29. Member dashboard page
+  - [x] 29.1 `app/member/page.tsx` — server component reading `getServerSession`
+  - [x] 29.2 Welcome strip with first name + role badge
+  - [x] 29.3 Fetch today's session from DB (or TS file fallback) based on IST date
+  - [x] 29.4 Render attendance block (see task 30)
+  - [x] 29.5 List "My attendance" — count + last 5 sessions attended
+  - [x] 29.6 List "Upcoming sessions" — next 4
 
-- [ ] 30. Attendance button component
-  - [ ] 30.1 `components/AttendanceButton.tsx` — client component
-  - [ ] 30.2 Accepts props: `{ week, sessionDate, alreadyMarked }`
-  - [ ] 30.3 Enabled only if today (IST) === sessionDate AND !alreadyMarked
-  - [ ] 30.4 Shows disabled state with explanation on other days
-  - [ ] 30.5 On click POST to `/api/attendance/mark`; show success/error toast
-  - [ ] 30.6 After success, swap to "✅ Attendance confirmed"
+- [x] 30. Attendance button component
+  - [x] 30.1 `components/AttendanceButton.tsx` — client component
+  - [x] 30.2 Accepts props: `{ week, sessionDate, alreadyMarked }`
+  - [x] 30.3 Enabled only if today (IST) === sessionDate AND !alreadyMarked
+  - [x] 30.4 Shows disabled state with explanation on other days
+  - [x] 30.5 On click POST to `/api/attendance/mark`; show success/error toast
+  - [x] 30.6 After success, swap to "✅ Attendance confirmed"
 
-- [ ] 31. Attendance API endpoint
-  - [ ] 31.1 `app/api/attendance/mark/route.ts` — POST handler
-  - [ ] 31.2 Read session from cookie via `getServerSession(authOptions)`
-  - [ ] 31.3 Validate request body has `week: number`
-  - [ ] 31.4 Fetch session row, compare `session.date` to IST "today"
-  - [ ] 31.5 Reject non-session-day with 400 and clear message
-  - [ ] 31.6 Lookup or create `member` row by email
-  - [ ] 31.7 Insert into `attendance`; handle unique-violation gracefully
-  - [ ] 31.8 Return `{ ok: true }` on success
+- [x] 31. Attendance API endpoint
+  - [x] 31.1 `app/api/attendance/mark/route.ts` — POST handler
+  - [x] 31.2 Read session from cookie via `getServerSession(authOptions)`
+  - [x] 31.3 Validate request body has `week: number`
+  - [x] 31.4 Fetch session row, compare `session.date` to IST "today"
+  - [x] 31.5 Reject non-session-day with 400 and clear message
+  - [x] 31.6 Lookup or create `member` row by email
+  - [x] 31.7 Insert into `attendance`; handle unique-violation gracefully
+  - [x] 31.8 Return `{ ok: true }` on success
 
-- [ ] 32. Admin placeholder page
-  - [ ] 32.1 `app/admin/page.tsx` — reads session, checks role is organiser/manager (defensive; middleware already guards)
-  - [ ] 32.2 Static "Admin tools coming next weekend" content
-  - [ ] 32.3 Brief list of features that will live here
+- [x] 32. Admin placeholder page
+  - [x] 32.1 `app/admin/page.tsx` — reads session, checks role is organiser/manager (defensive; middleware already guards)
+  - [x] 32.2 Static "Admin tools coming next weekend" content
+  - [x] 32.3 Brief list of features that will live here
 
 ---
 

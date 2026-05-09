@@ -3,21 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "./scripts/with-env.sh .env.dev.local next dev",
+    "dev:prod": "./scripts/confirm-prod.sh ./scripts/with-env.sh .env.prod.local next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:sessions": "./scripts/with-env.sh .env.dev.local node supabase/seed/seed-sessions.mjs",
+    "seed:sessions:prod": "./scripts/confirm-prod.sh ./scripts/with-env.sh .env.prod.local node supabase/seed/seed-sessions.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
     "next": "14.2.33",
+    "next-auth": "^4.24.14",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/node": "20.14.10",
+    "@types/pg": "^8.20.0",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.19",
+    "pg": "^8.20.0",
     "postcss": "8.4.39",
     "tailwindcss": "3.4.6",
     "typescript": "5.5.3"
