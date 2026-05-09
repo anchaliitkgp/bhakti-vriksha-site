@@ -7,6 +7,7 @@ const routes = [
   "", // home
   "about",
   "curriculum",
+  "schedule",
   "speakers",
   "resources",
   "gallery",

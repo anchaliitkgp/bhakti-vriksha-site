@@ -6,7 +6,8 @@ import { signOut, useSession } from "next-auth/react";
 const nav = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/curriculum", label: "Curriculum" },
+  { href: "/curriculum", label: "Proposed Curriculum" },
+  { href: "/schedule", label: "Actual Schedule" },
   { href: "/speakers", label: "Speakers" },
   { href: "/resources", label: "Resources" },
   { href: "/gallery", label: "Gallery" },

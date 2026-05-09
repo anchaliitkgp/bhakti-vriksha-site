@@ -146,7 +146,7 @@ Explicitly deferred from today to next weekend:
 | **Prospective parent** (Nisha, 34) | Understand the program; decide whether to bring her family; register. | Smartphone, WhatsApp power user. |
 | **Prospective teen** (Rohit, 16) | See if this is "cool" enough; scan speakers and activities. | Mobile-first, high expectations. |
 | **Current member** (Ravi, 42) | "What's this Sunday? Who's speaking? Where?" Mark attendance. | Mixed — desktop at work, phone at home. |
-| **Potential speaker** (Shekhar Prabhuji) | See where he fits in the roster; self-nominate for sessions. | Comfortable with forms, WhatsApp, email. |
+| **Potential speaker** (Shekhar Verma) | See where he fits in the roster; self-nominate for sessions. | Comfortable with forms, WhatsApp, email. |
 | **Organiser** (HG Mahaprema Krishna Das, HG Vrajeshwari Vinita DD) | Edit curriculum, see member attendance, post announcements, approve nominations. | Mixed — may ask Anchal for technical help initially. |
 | **Website Manager** (Anchal) | Update everything; own the technical admin. | Engineer, comfortable in code. |
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getAllSessions } from "@/lib/sessions";
 
 // Revalidate at most once per minute. Pages stay fast (edge-cached HTML);
@@ -6,22 +7,41 @@ import { getAllSessions } from "@/lib/sessions";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Curriculum · Bhakti Vriksha Radha Madan Mohan",
+  title: "Proposed Curriculum · Bhakti Vriksha Radha Madan Mohan",
   description:
-    "The full 32-week curriculum — Bhagavad-gita chapter by chapter, plus practical sessions from HG Radheshyam Prabhu. Starts Sunday 31 May 2026.",
+    "A proposed 32-week curriculum — Bhagavad-gita chapter by chapter, plus practical sessions from HG Radheshyam Prabhu. Draft for discussion. The actual schedule will be released by HG Mahaprema Prabhu.",
 };
 
-export default async function Curriculum() {
+export default async function ProposedCurriculum() {
   const schedule = await getAllSessions();
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
-      <h1 className="font-serif text-4xl text-krishna-800">32-Week Curriculum</h1>
+      <h1 className="font-serif text-4xl text-krishna-800">
+        Proposed 32-Week Curriculum
+      </h1>
       <div className="om-divider mt-3 mb-6" />
+
+      <div className="mb-6 p-4 border-l-4 border-saffron-500 bg-saffron-50 rounded">
+        <p className="text-sm text-gray-800">
+          <strong className="font-semibold text-saffron-800">Draft proposal.</strong>{" "}
+          This is a proposed curriculum drafted by the program coordinator for
+          discussion. The final schedule will be published by HG Mahaprema
+          Krishna Das and may differ. Once released, it will appear on the{" "}
+          <Link
+            href="/schedule"
+            className="text-krishna-700 underline hover:text-krishna-900"
+          >
+            Actual Schedule
+          </Link>{" "}
+          page.
+        </p>
+      </div>
+
       <p className="text-gray-700 mb-8 max-w-3xl">
-        Every Sunday, 90 minutes together. Gita chapters are the backbone;
-        every 4th Sunday is a practical session drawn from HG Radheshyam
-        Prabhu&apos;s courses. Schedule starts Sunday 31 May 2026.
+        The idea: every Sunday, 90 minutes together. Gita chapters as the
+        backbone; every 4th Sunday reserved for a practical session drawn from
+        HG Radheshyam Prabhu&apos;s courses. Proposed start: Sunday 31 May 2026.
       </p>
 
       <div className="flex flex-wrap gap-3 mb-6 text-sm">
@@ -77,7 +97,9 @@ export default async function Curriculum() {
                     })}
                   </td>
                   <td className="p-3 border-t">
-                    <div className="font-medium text-krishna-800">{s.title}</div>
+                    <div className="font-medium text-krishna-800">
+                      {s.title}
+                    </div>
                     {isPractical && (
                       <div className="text-xs uppercase tracking-wider text-saffron-700 mt-0.5">
                         Practical
@@ -104,6 +126,16 @@ export default async function Curriculum() {
           </tbody>
         </table>
       </div>
+
+      <p className="mt-6 text-sm text-gray-600">
+        Looking for what&apos;s actually running?{" "}
+        <Link
+          href="/schedule"
+          className="text-krishna-700 underline hover:text-krishna-900"
+        >
+          See the Actual Schedule →
+        </Link>
+      </p>
     </div>
   );
 }

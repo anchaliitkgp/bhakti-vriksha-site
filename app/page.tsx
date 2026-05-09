@@ -41,7 +41,7 @@ export default async function Home() {
               href="/curriculum"
               className="border border-white/70 text-white px-5 py-3 rounded-md hover:bg-white/10 transition"
             >
-              View the 32-week curriculum
+              View proposed curriculum
             </Link>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default async function Home() {
             href="/curriculum"
             className="text-krishna-700 underline underline-offset-4 hover:text-krishna-900"
           >
-            See full schedule →
+            See proposed curriculum →
           </Link>
         </div>
       </section>

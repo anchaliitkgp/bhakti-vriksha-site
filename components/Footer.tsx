@@ -15,7 +15,8 @@ export default function Footer() {
         <div>
           <div className="font-semibold text-white mb-3">Quick Links</div>
           <ul className="space-y-2 text-sm">
-            <li><a href="/curriculum" className="hover:text-saffron-200">Weekly Curriculum</a></li>
+            <li><a href="/curriculum" className="hover:text-saffron-200">Proposed Curriculum</a></li>
+            <li><a href="/schedule" className="hover:text-saffron-200">Actual Schedule</a></li>
             <li><a href="/speakers" className="hover:text-saffron-200">Speakers</a></li>
             <li><a href="/register" className="hover:text-saffron-200">Register</a></li>
             <li><a href="/contact" className="hover:text-saffron-200">Contact</a></li>
