@@ -166,13 +166,16 @@ export default function FamilyMemberBlock({
   const ageNum = derivedAge ?? Number(value.age);
   const isMinor = Number.isFinite(ageNum) && ageNum < 18;
 
-  // Age → marital_status lock (FR-02.5, FR-12.3)
+  // Age → marital_status lock (FR-02.5, FR-12.3).
+  // Depend on both `isMinor` AND the current marital_status so that any
+  // later drift (e.g. an auto-populate trying to set Married on a minor)
+  // is immediately corrected back to Single.
   useEffect(() => {
     if (isMinor && value.marital_status !== "Single") {
       onChange({ ...value, marital_status: "Single" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMinor]);
+  }, [isMinor, value.marital_status]);
 
   // Initiated reveal → focus the initiated_name field
   useEffect(() => {
@@ -206,12 +209,18 @@ export default function FamilyMemberBlock({
 
     const patch: Partial<MemberFormState> = {};
     if (suggestedGender && value.gender === "") patch.gender = suggestedGender;
-    if (suggestedMarital && value.marital_status === "")
+    // Minors MUST be Single regardless of relationship. Never suggest
+    // "Married" for a minor — the age < 18 rule always wins.
+    if (
+      suggestedMarital &&
+      value.marital_status === "" &&
+      !(isMinor && suggestedMarital === "Married")
+    )
       patch.marital_status = suggestedMarital;
 
     if (Object.keys(patch).length > 0) onChange({ ...value, ...patch });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.relationship, primaryGender, kind]);
+  }, [value.relationship, primaryGender, kind, isMinor]);
 
   const relOther = value.relationship === "Other";
   const isMarried = value.marital_status === "Married";
@@ -428,7 +437,11 @@ export default function FamilyMemberBlock({
             </span>
             <select
               required
-              value={value.marital_status}
+              // Defensive display: for minors, ALWAYS show "Single" in the UI
+              // even if a transient render is about to flush — the minor-lock
+              // useEffect will catch up on the next tick. This avoids the
+              // "disabled AND showing Married" surprise (user-reported bug).
+              value={isMinor ? "Single" : value.marital_status}
               onChange={(e) =>
                 set(
                   "marital_status",

@@ -112,7 +112,9 @@ export default function FamilyRegistrationForm({
       // FR-02.7: max 15 live (non-deleted) secondaries
       const live = prev.filter((s) => s._op !== "delete");
       if (live.length >= 15) return prev;
-      return [...prev, { ...emptyMember("secondary"), _op: "create" }];
+      const fresh = emptyMember("secondary");
+      fresh.relationship = suggestNextRelationship(live);
+      return [...prev, { ...fresh, _op: "create" }];
     });
   }, []);
 
@@ -475,6 +477,40 @@ export default function FamilyRegistrationForm({
       </div>
     </form>
   );
+}
+
+// Pick a sensible default relationship for a freshly-added family member.
+// Priority order:
+//   1. Spouse (unless already added)
+//   2. Son
+//   3. Daughter
+//   4. Father (unless already added)
+//   5. Mother (unless already added)
+//   6. Brother
+//   7. Sister
+//   8. Other
+// Spouse / Father / Mother cap at 1 because it's odd to have two; Son /
+// Daughter / Brother / Sister can repeat freely so they fall through.
+function suggestNextRelationship(
+  existing: Array<{ relationship: string }>
+): MemberFormState["relationship"] {
+  const used = new Set(existing.map((s) => s.relationship));
+  const order: MemberFormState["relationship"][] = [
+    "Spouse",
+    "Son",
+    "Daughter",
+    "Father",
+    "Mother",
+    "Brother",
+    "Sister",
+    "Other",
+  ];
+  const cappedOnce = new Set(["Spouse", "Father", "Mother"]);
+  for (const r of order) {
+    if (cappedOnce.has(r) && used.has(r)) continue;
+    return r;
+  }
+  return "Other";
 }
 
 // Convert form state → API shape. Applies the "same-as-primary" copy rule
