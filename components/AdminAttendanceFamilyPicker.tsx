@@ -28,6 +28,8 @@ export default function AdminAttendanceFamilyPicker({
     } else {
       next.delete("family");
     }
+    // Changing family invalidates any previously-selected member id.
+    next.delete("member");
     router.push(`/admin/attendance?${next.toString()}`);
     router.refresh();
   }

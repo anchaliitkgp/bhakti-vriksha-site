@@ -8,6 +8,7 @@ import { supabaseServer } from "@/lib/supabase";
 import AdminAttendanceFamilyPicker, {
   type AttendanceFamilyOption,
 } from "@/components/AdminAttendanceFamilyPicker";
+import AdminMemberTile from "@/components/AdminMemberTile";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -38,7 +39,7 @@ function todayIST(): string {
 export default async function AdminAttendancePage({
   searchParams,
 }: {
-  searchParams: { family?: string };
+  searchParams: { family?: string; member?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email)
@@ -85,6 +86,8 @@ export default async function AdminAttendancePage({
   const selectedId = searchParams.family ?? null;
   const isSelected =
     selectedId !== null && approvedIds.includes(selectedId);
+
+  const selectedMemberId = searchParams.member ?? null;
 
   // 2. If a family is selected, gather the rich view.
   let selection: null | {
@@ -211,6 +214,12 @@ export default async function AdminAttendancePage({
     };
   }
 
+  // Resolve the per-member drill-down, if a valid ?member= is selected.
+  const selectedMember =
+    selection && selectedMemberId
+      ? selection.roster.find((m) => m.id === selectedMemberId) ?? null
+      : null;
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -273,49 +282,97 @@ export default async function AdminAttendancePage({
 
             <div className="mt-5">
               <div className="text-xs uppercase tracking-wider text-saffron-700 mb-2">
-                Per-member attendance
+                Per-member attendance — click a card to see session details
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {selection.roster.map((m) => {
-                  const pct =
-                    selection!.totalPastSessions === 0
-                      ? 0
-                      : Math.round(
-                          (m.attended / selection!.totalPastSessions) * 100
-                        );
-                  return (
-                    <div
-                      key={m.id}
-                      className="p-3 bg-saffron-50/50 border border-saffron-100 rounded-lg"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-krishna-800">
-                          {m.label}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider text-saffron-700">
-                          {m.kind === "Primary" ? "Primary" : m.relationship}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-600">
-                        {m.attended} of {selection!.totalPastSessions}{" "}
-                        <span className="text-gray-400">·</span>{" "}
-                        <span className="font-semibold text-krishna-800">
-                          {pct}%
-                        </span>
-                      </div>
-                      {/* simple bar */}
-                      <div className="mt-2 h-1.5 bg-saffron-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-saffron-500"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                {selection.roster.map((m) => (
+                  <AdminMemberTile
+                    key={m.id}
+                    memberId={m.id}
+                    label={m.label}
+                    kind={m.kind}
+                    relationship={m.relationship}
+                    attended={m.attended}
+                    total={selection!.totalPastSessions}
+                    selected={selectedMemberId === m.id}
+                  />
+                ))}
               </div>
             </div>
           </div>
+
+          {/* Per-member drill-down (only when a tile is selected) */}
+          {selectedMember && (
+            <div className="bg-white border border-krishna-200 rounded-2xl p-4 md:p-6 shadow-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-krishna-700">
+                    Session-by-session —{" "}
+                    {selectedMember.kind === "Primary"
+                      ? "Primary"
+                      : selectedMember.relationship}
+                  </div>
+                  <h2 className="font-serif text-xl text-krishna-800">
+                    {selectedMember.label}
+                  </h2>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs uppercase tracking-wider text-krishna-700">
+                    Attended
+                  </div>
+                  <div className="font-serif text-2xl text-krishna-800">
+                    {selectedMember.attended} / {selection.totalPastSessions}
+                  </div>
+                </div>
+              </div>
+
+              {selection.history.length === 0 ? (
+                <p className="mt-3 text-sm text-gray-500">
+                  No past sessions yet — check back after the first Sunday.
+                </p>
+              ) : (
+                <ul className="mt-4 divide-y divide-saffron-100">
+                  {selection.history.map((row) => {
+                    const attended = row.cells[selectedMember.id];
+                    return (
+                      <li
+                        key={row.week}
+                        className={`py-2 flex items-center gap-3 text-sm ${
+                          attended ? "" : "opacity-80"
+                        }`}
+                      >
+                        <span
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold ${
+                            attended
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-400"
+                          }`}
+                          aria-label={attended ? "Attended" : "Not marked"}
+                        >
+                          {attended ? "✓" : "·"}
+                        </span>
+                        <span className="w-16 shrink-0 text-gray-500">
+                          Week {row.week}
+                        </span>
+                        <span className="w-40 shrink-0 hidden sm:block text-gray-500 whitespace-nowrap">
+                          {formatPrettyDate(row.date)}
+                        </span>
+                        <span
+                          className={
+                            attended
+                              ? "text-krishna-800 font-medium"
+                              : "text-gray-600"
+                          }
+                        >
+                          {row.title}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
 
           {/* Week × Member grid */}
           <div className="bg-white border border-saffron-100 rounded-2xl p-4 md:p-6 shadow-sm overflow-x-auto">
